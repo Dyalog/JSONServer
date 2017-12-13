@@ -1,0 +1,8 @@
+﻿DyalogBuild: 0.1
+ID         : JSONServer, Version=0.9
+Description: Simple JSON Web Service
+Defaults   : ⎕IO←⎕ML←1
+TARGET     : Distribution/JSONServer.dws
+
+NS    : Source/*.dyalog, Target=#
+LIB   : HttpCommand, Target=#

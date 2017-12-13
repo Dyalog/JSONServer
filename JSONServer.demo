@@ -1,0 +1,6 @@
+﻿)clear
+]DBUILD /bb/JSONServer/
+srv←⎕NEW JSONServer
+srv.CodeLocation←'/bb/JSONServer/Sample/'
+srv.Port←8080
+srv.Start ⍝
