@@ -1,0 +1,15 @@
+#!/bin/bash
+
+if [ -z "$MYDYALOG_USERNAME" ]; then
+	echo -n "Please enter your MyDyalog Username: "
+	read MYDYALOG_USERNAME
+	export MYDYALOG_USERNAME
+fi
+if [ -z "$MYDYALOG_PASSWORD" ]; then
+	echo -n "Please enter your MyDyalog Password: "
+	read -s MYDYALOG_PASSWORD
+	export MYDYALOG_USERNAME
+fi
+
+echo "Building JSONServer Docker container"
+docker build -t JSONServer --build-arg MYDYALOG_USERNAME=${MYDYALOG_USERNAME} --build-arg MYDYALOG_PASSWORD=${MYDYALOG_PASSWORD} . | tee docker-build.log
