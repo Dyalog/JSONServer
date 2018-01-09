@@ -1,4 +1,4 @@
-﻿ {ref}←AutoStart;beginsWith;cio;splitFirst;validParams;commandLineArgs;hits;inds;mask;i;rc;msg;configFile;param;value
+﻿ {ref}←AutoStart;beginsWith;cio;splitFirst;validParams;commandLineArgs;hits;inds;mask;i;rc;msg;configFile;param;value;t
 ⍝ JSONServer automatic startup
 ⍝ General logic:
 ⍝   Command line parameters take priority over configuration file which takes priority over default
@@ -9,6 +9,17 @@
  validParams←'ConfigFile' 'CodeLocation' 'Port' 'InitializeFn' 'AllowedFns' ⍝ to be added - 'Secure' 'RootCertDir' 'SSLValidation' 'ServerCertFile' 'ServerKeyFile'
 
  commandLineArgs←1↓2 ⎕NQ'.' 'GetCommandLineArgs'
+ ⍝ ↑↑↑ This isn't good enough under Linux ↑↑↑
+
+ ⍝ ↓↓↓ Short-Term fix by Morten to be able to make progress ↓↓↓
+ :If 0≠≢t←2 ⎕NQ'.' 'GetEnvironment' 'port'
+     commandLineArgs,←⊂'port=',t
+ :EndIf
+ :If 0≠≢t←2 ⎕NQ'.' 'GetEnvironment' 'codelocation'
+     commandLineArgs,←⊂'codelocation=',t
+ :EndIf
+ ⍝ ↑↑↑ Short-Term fix by Morten to be able to make progress ↑↑↑
+
  commandLineArgs/⍨←~'+-'∊⍨⊃¨commandLineArgs ⍝ remove command line options (begin with + or -)
  commandLineArgs/⍨←'='∊¨commandLineArgs     ⍝ keep only command line options that have an =
 
