@@ -1,4 +1,4 @@
 #!/bin/bash
 
 echo "running JSONServer Docker container"
-docker run -it --rm -p 8080:8080 -p 4502:4502 JSONServer
+docker run -it --rm -p 8080:8080 -p 4502:4502 jsonserver

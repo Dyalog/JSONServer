@@ -12,4 +12,4 @@ if [ -z "$MYDYALOG_PASSWORD" ]; then
 fi
 
 echo "Building JSONServer Docker container"
-docker build -t JSONServer --build-arg MYDYALOG_USERNAME=${MYDYALOG_USERNAME} --build-arg MYDYALOG_PASSWORD=${MYDYALOG_PASSWORD} . | tee docker-build.log
+docker build -t jsonserver --build-arg MYDYALOG_USERNAME=${MYDYALOG_USERNAME} --build-arg MYDYALOG_PASSWORD=${MYDYALOG_PASSWORD} . | tee docker-build.log
