@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if ! [ -d /MiServer ]; then
-    git clone https://github.com/Dyalog/JSONServer.git /JSONServer
+if ! [ -d /JSONServer ]; then
+    git clone https://github.com/Dyalog/JSONServer /JSONServer
 else
     cd /JSONServer
     git pull
