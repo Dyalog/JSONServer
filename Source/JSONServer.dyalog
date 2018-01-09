@@ -3,8 +3,18 @@
     :Field Public Port←8080    ⍝
     :Field Public CodeLocation←#
     :Field Public InitializeFn←'Initialize' ⍝ name of the application "bootstrap" function
-    :Field Public AllowedFns←'' ⍝ list of functions to be "exposed" by this service
+    :Field Public AllowedFns←'' ⍝ list of functions to be "exposed" by this service, can be a vector or comma-delimited list of function names
+    :Field Public ConfigFile←''
+
+⍝ Fields related to running a secure server (to be implemented)
+⍝    :Field Public Secure←0
+⍝    :Field Public RootCertDir
+⍝    :Field Public SSLValidation
+⍝    :Field Public ServerCertFile
+⍝    :Field Public ServerKeyFile
+
     :Field Folder←''
+    :Field _configLoaded←0
     :Field _stop←0               ⍝ set to 1 to stop server
 
 
@@ -34,6 +44,12 @@
     ∇ (rc msg)←Start
       :Access public
       _stop←0
+     
+      CheckRC(rc msg)←LoadConfiguration
+     
+      :If 1=≡,AllowedFns
+          AllowedFns←(⊂'')~⍨{⍵⊆⍨','≠⍵}',',AllowedFns
+      :EndIf
       AllowedFns←,(⊆⍣(~0∊⍴AllowedFns)),AllowedFns
       CheckRC(rc msg)←CheckPort
       CheckRC(rc msg)←LoadConga
@@ -46,12 +62,37 @@
       _stop←1
     ∇
 
+    ∇ r←Running
+      :Access public
+      r←~_stop
+    ∇
+
     ∇ (rc msg)←CheckPort;p
       (rc msg)←3('Invalid port: ',∊⍕Port)
       ExitIf 0=p←⊃⊃(//)⎕VFI⍕Port
-      ExitIf{(⍵>32767)∨(⍵<1)∨⍵≠⌊⍵}Port
+      ExitIf{(⍵>32767)∨(⍵<1)∨⍵≠⌊⍵}p
       (rc msg)←0 ''
     ∇
+
+    ∇ (rc msg)←LoadConfiguration;config;params
+      :Access public
+      ⍝!!! wip
+      (rc msg)←0 ''
+      :If ~0∊⍴ConfigFile
+          :Trap 0/0
+              :If ⎕NEXISTS ConfigFile
+                  config←⎕JSON⊃⎕NGET ConfigFile
+                  params←{⍵/'_'≠⊃¨⍵}⎕NL ¯2.2
+                  ∘∘∘
+                  config.⎕NL ¯2
+              :Else
+                  →0⊣(rc msg)←6('Configuation file "',ConfigFile,'" not found')
+              :EndIf
+              _configLoaded←1
+          :EndTrap
+      :EndIf
+    ∇
+
 
     ∇ (rc msg)←LoadConga;dyalog
       (rc msg)←0 ''
@@ -111,12 +152,10 @@
           :If 3=CodeLocation.⎕NC InitializeFn ⍝ does it exist?
               :If 1 0 0≡⊃CodeLocation.⎕AT InitializeFn ⍝ with the correct syntax?
                   res←,⊆CodeLocation⍎InitializeFn        ⍝ run it
-                  CheckRC(rc msg)←2↑res,(⍴res)↓¯1('"',(⍕CodeLocation),InitializeFn,'" did not return a 0 return code')
+                  CheckRC(rc msg)←2↑res,(⍴res)↓¯1('"',(⍕CodeLocation),'.',InitializeFn,'" did not return a 0 return code')
               :Else
-                  CheckRC(rc msg)←8('"',(⍕CodeLocation),InitializeFn,'" is not a niladic result-returning function')
+                  CheckRC(rc msg)←8('"',(⍕CodeLocation),'.',InitializeFn,'" is not a niladic result-returning function')
               :EndIf
-          :Else
-              CheckRC(rc msg)←9('"',(⍕CodeLocation),InitializeFn,'" was not found')
           :EndIf
       :EndIf
     ∇

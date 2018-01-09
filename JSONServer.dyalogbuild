@@ -4,5 +4,6 @@ Description: Simple JSON Web Service
 Defaults   : ⎕IO←⎕ML←1
 TARGET     : Distribution/JSONServer.dws
 
-NS    : Source/*.dyalog, Target=#
+APL   : Source/*.dyalog, Target=#
 LIB   : HttpCommand, Target=#
+LX    : AutoStart '' 
