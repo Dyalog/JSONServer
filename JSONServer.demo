@@ -1,6 +1,23 @@
 ﻿)clear
-]DBUILD /bb/JSONServer/
+]load /bb/JSONServer/Source/JSONServer
 srv←⎕NEW JSONServer
 srv.CodeLocation←'/bb/JSONServer/Sample/'
 srv.Port←8080
-srv.Start ⍝
+srv.Start
+
+⍝ Now make a call to it:
+]load HTTPCommand
+cmd←⎕NEW HttpCommand
+cmd.(Command URL)←'POST' 'localhost:8080/GetSign'
+cmd.Headers⍪←'content-type' 'application/json'
+cmd.Params←'[10,31]'
+q←cmd.Run
+q.rc
+q.Data
+
+cmd.Params←'[10,31]'
+q←cmd.Run
+q.rc
+q.HttpStatus
+q.HttpMessage
+
