@@ -7,6 +7,6 @@ else
     git pull
 fi
 
-export port=8080
-export codelocation=/JSONServer/Sample
+export Port=8080
+export CodeLocation=/JSONServer/Sample
 dyalog -ride /JSONServer/Distribution/JSONServer.dws
