@@ -6,4 +6,4 @@ TARGET     : Distribution/JSONServer.dws
 
 APL   : Source/*.dyalog, Target=#
 LIB   : HttpCommand, Target=#
-LX    : AutoStart '' 
+LX    : Server←AutoStart 

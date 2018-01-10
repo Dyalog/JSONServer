@@ -1,0 +1,53 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<title>JSONServer</title>
+</head>
+
+<body>
+
+<form id="myform">
+  <table>
+	<tr>
+	  <td><label for="ipaddress">IP Address:</label></td>
+	  <td><input id="ipaddress" name="ipAddress" type="text" value="localhost"></td>
+	</tr>
+	<tr>
+	  <td><label for="port">Port:</label></td>
+	  <td><input id="port" name="port" type="text" value="8080"></td>
+	</tr>
+	<tr>
+	  <td><label for="function">Method to Execute:</label></td>
+	  <td><input id="function" name="function" type="text"></td>
+	</tr>
+	<tr>
+	  <td><label for="payload">JSON Data:</label></td>
+	  <td><textarea id="payload" cols="100" name="payload" rows="10"></textarea></td>
+	</tr>
+	<tr>
+	  <td colspan="2"><button onclick="doit()" type="button">Send</button></td>
+	</tr>
+  </table>
+</form>
+<div id="result">
+</div>
+<script>
+function doit(){
+var xhttp = new XMLHttpRequest();
+
+var url = 'http://' +(document.getElementById("ipaddress").value) + ':' + (document.getElementById("port").value) + '/' + (document.getElementById("function").value)
+xhttp.onreadystatechange = function(){
+console.log("ready state: " + this.readyState);
+}
+
+xhttp.open("POST", url, true);
+xhttp.setRequestHeader("Content-Type","application/json");
+xhttp.send(document.getElementById("payload").value);
+}
+</script>
+
+</body>
+
+</html>

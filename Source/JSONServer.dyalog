@@ -5,6 +5,8 @@
     :Field Public InitializeFn←'Initialize' ⍝ name of the application "bootstrap" function
     :Field Public AllowedFns←'' ⍝ list of functions to be "exposed" by this service, can be a vector or comma-delimited list of function names
     :Field Public ConfigFile←''
+    :Field Public AllowCORS←1   ⍝ allow Cross-Origin Resource Sharing
+    :Field Public Logging←0     ⍝ turn logging on/off
 
 ⍝ Fields related to running a secure server (to be implemented)
 ⍝    :Field Public Secure←0
@@ -191,7 +193,7 @@
                       Connections.⎕EX obj
                   :EndIf
                   :If 0≠4⊃wres
-                      Log'RunServer: DRC.Wait reported error ',(⍕#.DRC.Error 4⊃wres),' on ',2⊃wres
+                      Log'RunServer: DRC.Wait reported error ',(⍕#.Conga.Error 4⊃wres),' on ',2⊃wres
                   :EndIf
      
               :Case 'Connect'
@@ -226,8 +228,14 @@
           :Select evt
           :Case 'HTTPHeader'
               ns.Req←⎕NEW Request data
+              :If Logging
+                  ⎕←('G⊂9999/99/99 @ 99:99:99⊃'⎕FMT 100⊥6↑⎕TS)data
+              :EndIf
           :Case 'HTTPBody'
               ns.Req.ProcessBody data
+              :If Logging
+                  ⎕←('G⊂9999/99/99 @ 99:99:99⊃'⎕FMT 100⊥6↑⎕TS)data
+              :EndIf
           :Case 'HTTPChunk'
               ns.Req.ProcessChunk data
           :Case 'HTTPTrailer'
@@ -235,7 +243,7 @@
           :EndSelect
       :EndHold
      
-      :If ns.Req.Response.Status≠200
+      :If ns.Req.Preflight∨ns.Req.Response.Status≠200
           r←Respond ns.Req.Response
       :ElseIf ns.Req.Complete
           HandleJSONRequest ns
@@ -276,6 +284,9 @@
     ∇ r←Respond res;status;z
       status←(⊂'HTTP/1.1'),res.((⍕Status)StatusText)
       res.Headers⍪←'Content-Length'(⍕≢res.JSON)
+      :If AllowCORS
+          res.Headers⍪←'Access-Control-Allow-Origin' '*'
+      :EndIf
       :If 0≠1⊃z←#.DRC.Send obj(status,res.Headers res.JSON)
           Log'Conga error when sending response'
           Log⍕z
@@ -297,6 +308,7 @@
         :Field Public Instance Cookies←0 2⍴⊂''
         :Field Public Instance CloseConnection←0
         :Field Public Instance Response
+        :Field Public Instance Preflight←0       ⍝ is this a CORS preflight request?
 
         GetFromTable←{(⍵[;1]⍳⊂lc ,⍺)⊃⍵[;2],⊂''}
         split←{p←(⍺⍷⍵)⍳1 ⋄ ((p-1)↑⍵)(p↓⍵)} ⍝ Split ⍵ on first occurrence of ⍺
@@ -321,6 +333,15 @@
           Host←'host'GetFromTable Headers
           (Page query)←'?'split Input
           Page←PercentDecode Page
+         
+          :If (Method≡'options')∧##.AllowCORS
+              Response.Headers⍪←'Access-Control-Allow-Headers' 'content-type'
+              Response.Headers⍪←'Access-Control-Allow-Methods' 'GET, POST, DELETE, PUT, OPTIONS, HEAD'
+              Complete←0∊⍴'content-length'GetFromTable Headers
+              Response.(Status StatusText)←200 'OK'
+              Preflight←1
+              →0
+          :EndIf
          
           →0⍴⍨'(Request method should be POST)'FailIf'post'≢Method
           →0⍴⍨'(Bad URI)'FailIf'/'≠⊃Page
