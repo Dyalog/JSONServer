@@ -18,6 +18,8 @@
     :Field Folder←''
     :Field _configLoaded←0
     :Field _stop←0               ⍝ set to 1 to stop server
+    :Field _started←0
+    :Field _stopped←1
 
 
     ∇ make
@@ -45,7 +47,14 @@
 
     ∇ (rc msg)←Start
       :Access public
-      _stop←0
+     
+      :If _started
+          CheckRC(rc msg)←¯1 'Server thinks it''s already started'
+      :EndIf
+     
+      :If _stop
+          CheckRC(rc msg)←¯1 'Server is in the process of stopping'
+      :EndIf
      
       CheckRC(rc msg)←LoadConfiguration
      
@@ -59,9 +68,23 @@
       CheckRC(rc msg)←StartServer
     ∇
 
-    ∇ Stop
+    ∇ (rc msg)←Stop;ts
       :Access public
+      :If _stop
+          CheckRC(rc msg)←¯1 'Server is already stopping'
+      :EndIf
+      :If ~_started
+          CheckRC(rc msg)←¯1 'Server is not running'
+      :EndIf
+      ts←⎕AI[3]
       _stop←1
+      Log'Stopping server...'
+      :While ~_stopped
+          :If 10000<⎕AI[3]-ts
+              CheckRC(rc msg)←¯1 'Server seems stuck'
+          :EndIf
+      :EndWhile
+      _started←_stop←0
     ∇
 
     ∇ r←Running
@@ -164,14 +187,18 @@
 
     ∇ (rc msg)←StartServer;r
       msg←'Unable to start server'
-      CheckRC rc←1⊃r←#.DRC.Srv'' ''Port'http' 10000
-      ServerName←2⊃r
-      {}#.DRC.SetProp'.' 'EventMode' 1 ⍝ report Close/Timeout as events
-      {}#.DRC.SetProp ServerName'FIFOMode' 1
-      {}#.DRC.SetProp ServerName'DecodeBuffers' 1
-      Connections←#.⎕NS''
-      RunServer
-      msg←''
+      :If 98 10048∊⍨rc←1⊃r←#.DRC.Srv'' ''Port'http' 10000 ⍝ 98=Linux, 10048=Windows
+          →0⊣msg←'Server could not start - port ',(⍕Port),' is already in use'
+      :ElseIf 0=rc
+          (_started _stopped)←1 0
+          ServerName←2⊃r
+          {}#.DRC.SetProp'.' 'EventMode' 1 ⍝ report Close/Timeout as events
+          {}#.DRC.SetProp ServerName'FIFOMode' 1
+          {}#.DRC.SetProp ServerName'DecodeBuffers' 1
+          Connections←#.⎕NS''
+          RunServer
+          msg←''
+      :EndIf
     ∇
 
     ∇ RunServer
@@ -219,6 +246,7 @@
           :EndSelect ⍝ rc
       :EndWhile
       {}#.DRC.Close ServerName
+      _stopped←1
     ∇
 
     ∇ r←ns HandleRequest req;data;evt;obj;rc
