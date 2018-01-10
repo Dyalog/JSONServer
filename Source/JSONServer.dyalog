@@ -7,6 +7,7 @@
     :Field Public ConfigFile←''
     :Field Public AllowCORS←1   ⍝ allow Cross-Origin Resource Sharing
     :Field Public Logging←0     ⍝ turn logging on/off
+    :Field Public WebInterface←1
 
 ⍝ Fields related to running a secure server (to be implemented)
 ⍝    :Field Public Secure←0
@@ -237,7 +238,7 @@
               :EndSelect ⍝ evt
      
           :Case 1010 ⍝ Object Not found
-              Log'Object ''',ServerName,''' has been closed - Web Server shutting down'
+             ⍝ Log'Object ''',ServerName,''' has been closed - Web Server shutting down'
               →0
      
           :Else
@@ -272,6 +273,7 @@
       :EndHold
      
       :If ns.Req.Preflight∨ns.Req.Response.Status≠200
+          ∘∘∘
           r←Respond ns.Req.Response
       :ElseIf ns.Req.Complete
           HandleJSONRequest ns
