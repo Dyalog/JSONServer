@@ -1,13 +1,15 @@
-﻿ {ref}←AutoStart;empty;validParams;mask;values;params;param;value;rc;msg
+﻿ {ref}←AutoStart;empty;validParams;mask;values;params;param;value;rc;msg;getEnv;NoSession
 ⍝ JSONServer automatic startup
 ⍝ General logic:
 ⍝   Command line parameters take priority over configuration file which takes priority over default
 
  empty←0∊⍴
+ getEnv←{2 ⎕NQ'.' 'GetEnvironment'⍵}
 
  validParams←'ConfigFile' 'CodeLocation' 'Port' 'InitializeFn' 'AllowedFns' ⍝ to be added - 'Secure' 'RootCertDir' 'SSLValidation' 'ServerCertFile' 'ServerKeyFile'
- mask←~empty¨values←{2 ⎕NQ'.' 'GetEnvironment'⍵}¨validParams
+ mask←~empty¨values←getEnv¨validParams
  params←mask⌿validParams,⍪values
+ NoSession←~empty getEnv'NoSession'
 
  ref←'No server running'
  :If ~empty params
@@ -26,7 +28,7 @@
          ('Unable to start server - ',msg)⎕SIGNAL 16
      :EndIf
 
-     :If 'R'=3⊃#.⎕WG'APLVersion' ⍝ runtime?
+     :If NoSession∨'R'=3⊃#.⎕WG'APLVersion' ⍝ no session or runtime?
          :While ref.Running
              {}⎕DL 10
          :EndWhile

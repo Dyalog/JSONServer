@@ -1,13 +1,13 @@
 ﻿:Class JSONServer
-    :Field Public AcceptFrom←⍬ ⍝ IP addressed to accept requests from - empty means all
-    :Field Public Port←8080    ⍝
+    :Field Public AcceptFrom←⍬    ⍝ IP addressed to accept requests from - empty means all
+    :Field Public Port←8080       ⍝
     :Field Public CodeLocation←#
     :Field Public InitializeFn←'Initialize' ⍝ name of the application "bootstrap" function
-    :Field Public AllowedFns←'' ⍝ list of functions to be "exposed" by this service, can be a vector or comma-delimited list of function names
+    :Field Public AllowedFns←''   ⍝ list of functions to be "exposed" by this service, can be a vector or comma-delimited list of function names
     :Field Public ConfigFile←''
-    :Field Public AllowCORS←1   ⍝ allow Cross-Origin Resource Sharing
-    :Field Public Logging←0     ⍝ turn logging on/off
-    :Field Public WebInterface←1
+    :Field Public Logging←0       ⍝ turn logging on/off
+    :Field Public HtmlInterface←1
+    :Field Public Debug←0
 
 ⍝ Fields related to running a secure server (to be implemented)
 ⍝    :Field Public Secure←0
@@ -254,6 +254,9 @@
       (rc obj evt data)←req
       r←0
       :Hold obj
+          :If Debug
+              ∘∘∘
+          :EndIf
           :Select evt
           :Case 'HTTPHeader'
               ns.Req←⎕NEW Request data
@@ -270,25 +273,30 @@
           :Case 'HTTPTrailer'
               ns.Req.ProcessTrailer data
           :EndSelect
-      :EndHold
      
-      :If ns.Req.Preflight∨ns.Req.Response.Status≠200
-          ∘∘∘
-          r←Respond ns.Req.Response
-      :ElseIf ns.Req.Complete
-          HandleJSONRequest ns
-          r←Respond ns.Req.Response
-      :EndIf
+          :If ns.Req.Complete
+              :If ns.Req.Response.Status=200
+                  HandleJSONRequest ns
+              :EndIf
+              r←Respond ns.Req.Response
+          :EndIf
+      :EndHold
     ∇
 
     ∇ HandleJSONRequest ns;payload;fn
+      :If 0∊⍴fn←1↓'.'@('/'∘=)ns.Req.Page
+          ExitIf('No function specified')ns.Req.FailIf~HtmlInterface∧'get'≡ns.Req.Method
+          ns.Req.Response.Headers←1 2⍴'Content-Type' 'text/html'
+          ns.Req.Response.JSON←HtmlPage
+          →0
+      :EndIf
+     
       :Trap 0
           payload←0 ⎕JSON ns.Req.Body
       :Else
           →0⍴⍨'Could not parse payload as JSON'ns.Req.FailIf 1
       :EndTrap
      
-      fn←1↓'.'@('/'∘=)ns.Req.Page
       ExitIf('Could not locate method "',fn,'"')ns.Req.FailIf{0::1 ⋄ 3≠CodeLocation.⎕NC ⍵}fn
      
       :If ~0∊⍴AllowedFns
@@ -313,9 +321,8 @@
 
     ∇ r←Respond res;status;z
       status←(⊂'HTTP/1.1'),res.((⍕Status)StatusText)
-      res.Headers⍪←'Content-Length'(⍕≢res.JSON)
-      :If AllowCORS
-          res.Headers⍪←'Access-Control-Allow-Origin' '*'
+      :If Logging
+          ⎕←('G⊂9999/99/99 @ 99:99:99⊃'⎕FMT 100⊥6↑⎕TS)status res.Headers res.JSON
       :EndIf
       :If 0≠1⊃z←#.DRC.Send obj(status,res.Headers res.JSON)
           Log'Conga error when sending response'
@@ -338,7 +345,6 @@
         :Field Public Instance Cookies←0 2⍴⊂''
         :Field Public Instance CloseConnection←0
         :Field Public Instance Response
-        :Field Public Instance Preflight←0       ⍝ is this a CORS preflight request?
 
         GetFromTable←{(⍵[;1]⍳⊂lc ,⍺)⊃⍵[;2],⊂''}
         split←{p←(⍺⍷⍵)⍳1 ⋄ ((p-1)↑⍵)(p↓⍵)} ⍝ Split ⍵ on first occurrence of ⍺
@@ -350,7 +356,7 @@
           r←a{⍺←'' ⋄ ⍵:⍵⊣Response.(Status StatusText)←400('Bad Request',(3×0∊⍴⍺)↓' - ',⍺) ⋄ ⍵}w
         ∇
 
-        ∇ make args;query;cookies
+        ∇ make args;query;origin
           :Access public
           :Implements constructor
           (Method Input HTTPVersion Headers)←args
@@ -363,20 +369,13 @@
           Host←'host'GetFromTable Headers
           (Page query)←'?'split Input
           Page←PercentDecode Page
-         
-          :If (Method≡'options')∧##.AllowCORS
-              Response.Headers⍪←'Access-Control-Allow-Headers' 'content-type'
-              Response.Headers⍪←'Access-Control-Allow-Methods' 'GET, POST, DELETE, PUT, OPTIONS, HEAD'
-              Complete←0∊⍴'content-length'GetFromTable Headers
-              Response.(Status StatusText)←200 'OK'
-              Preflight←1
-              →0
+          :If Complete←'get'≡Method
+          :AndIf ##.HtmlInterface∧Page≢,'/'
+              →0⍴⍨'(Request method should be POST)'FailIf'post'≢Method
+              →0⍴⍨'(Bad URI)'FailIf'/'≠⊃Page
+              →0⍴⍨'(Content-Type should be application/json)'FailIf'application/json'≢lc'content-type'GetFromTable Headers
           :EndIf
-         
-          →0⍴⍨'(Request method should be POST)'FailIf'post'≢Method
-          →0⍴⍨'(Bad URI)'FailIf'/'≠⊃Page
           →0⍴⍨'(Cannot accept query parameters)'FailIf~0∊⍴query
-          →0⍴⍨'(Content-Type should be application/json)'FailIf'application/json'≢lc'content-type'GetFromTable Headers
         ∇
 
 
@@ -465,6 +464,75 @@
           :EndIf
       :EndFor
       msg←¯1↓msg
+    ∇
+    :EndSection
+
+    :Section HTML
+    ∇ r←ScriptFollows;n
+      :Access public shared
+      n←2
+      r←{⍵/⍨'⍝'≠⊃¨⍵}{1↓¨⍵/⍨∧\'⍝'=⊃¨⍵}{⍵{((∨\⍵)∧⌽∨\⌽⍵)/⍺}' '≠⍵}¨(1+n⊃⎕LC)↓↓(180⌶)n⊃⎕XSI
+      r←2↓∊(⎕UCS 13 10)∘,¨r
+    ∇
+
+    ∇ r←HtmlPage
+      r←ScriptFollows
+⍝<!DOCTYPE html>
+⍝<html>
+⍝<head>
+⍝<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+⍝<title>JSONServer</title>
+⍝</head>
+⍝<body>
+⍝<fieldset>
+⍝  <legend>Request</legend>
+⍝  <form id="myform">
+⍝    <table>
+⍝      <tr>
+⍝        <td><label for="function">Method to Execute:</label></td>
+⍝        <td><input id="function" name="function" type="text"></td>
+⍝      </tr>
+⍝      <tr>
+⍝        <td><label for="payload">JSON Data:</label></td>
+⍝        <td><textarea id="payload" cols="100" name="payload" rows="10"></textarea></td>
+⍝      </tr>
+⍝      <tr>
+⍝        <td colspan="2"><button onclick="doit()" type="button">Send</button></td>
+⍝      </tr>
+⍝    </table>
+⍝  </form>
+⍝</fieldset>
+⍝<fieldset>
+⍝  <legend>Response</legend>
+⍝  <div id="result">
+⍝  </div>
+⍝</fieldset>
+⍝<script>
+⍝function doit() {
+⍝  document.getElementById("result").innerHTML = "";
+⍝  var xhttp = new XMLHttpRequest();
+⍝  var fn = document.getElementById("function").value;
+⍝  fn = (0 == fn.indexOf('/')) ? fn : '/' + fn;
+⍝
+⍝  xhttp.open("POST", fn, true);
+⍝  xhttp.setRequestHeader("Content-Type", "application/json");
+⍝
+⍝  xhttp.onreadystatechange = function() {
+⍝    if (this.status != 0) {
+⍝      if (this.status == 200) {
+⍝        var resp = "<pre><code>" + this.responseText + "</code></pre>";
+⍝        document.getElementById("result").innerHTML = resp;
+⍝        }
+⍝      else {
+⍝        var resp = "Error processing request: " + this.statua + " " + this.statusText;
+⍝        }
+⍝      }
+⍝    }
+⍝  xhttp.send(document.getElementById("payload").value);
+⍝}
+⍝</script>
+⍝</body>
+⍝</html>
     ∇
     :EndSection
 
