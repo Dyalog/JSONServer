@@ -1,4 +1,5 @@
-﻿)clear
+﻿⍝ NB requires v16.0 or later
+)clear
 ⎕pw←1000
 )ns Zodiac
 ]load /devt/JSONServer/Sample/* -target=Zodiac
