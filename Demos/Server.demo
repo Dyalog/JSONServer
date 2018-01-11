@@ -1,0 +1,24 @@
+﻿)clear
+)ns Zodiac
+]load /devt/JSONServer/Sample/* -target=Zodiac
+⎕VR 'Zodiac.GetSign'
+Zodiac.GetSign 10 31
+
+(halloween←⎕NS '').(month day)←10 31
+hweensign←Zodiac.GetSignObject halloween
+hweensign.(month day sign)
+⎕JSON hweensign
+
+]load /Devt/JSONServer/Source/JSONServer
+srv←⎕NEW JSONServer
+srv.CodeLocation←#.Zodiac
+srv.Port←8080
+srv.Start
+srv.Stop
+
+)clear
+]load /devt/JSONServer/Source/JSONServer
+srv←⎕NEW JSONServer (8080 '/devt/JSONServer/Sample')
+srv.Start
+
+dyalog /devt/JSONServer/Distribution/JSONServer.dws -Port=8080 -CodeLocation="/devt/JSONServer/Sample"
