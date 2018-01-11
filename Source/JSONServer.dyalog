@@ -67,6 +67,7 @@
       CheckRC(rc msg)←LoadConga
       CheckRC(rc msg)←CheckCodeLocation
       CheckRC(rc msg)←StartServer
+      Log 'JSONServer started on port ',⍕Port
     ∇
 
     ∇ (rc msg)←Stop;ts
