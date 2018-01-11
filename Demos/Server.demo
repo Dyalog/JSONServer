@@ -1,4 +1,5 @@
 ﻿)clear
+⎕pw←1000
 )ns Zodiac
 ]load /devt/JSONServer/Sample/* -target=Zodiac
 ⎕VR 'Zodiac.GetSign'
@@ -14,11 +15,11 @@ srv←⎕NEW JSONServer
 srv.CodeLocation←#.Zodiac
 srv.Port←8080
 srv.Start
+⍝ Now run the client demo
 srv.Stop
 
 )clear
 ]load /devt/JSONServer/Source/JSONServer
-srv←⎕NEW JSONServer (8080 '/devt/JSONServer/Sample')
-srv.Start
+⎕←(srv rc)←JSONServer.Run (8080 '/devt/JSONServer/Sample')
 
-dyalog /devt/JSONServer/Distribution/JSONServer.dws -Port=8080 -CodeLocation="/devt/JSONServer/Sample"
+⍝ dyalog /devt/JSONServer/Distribution/JSONServer.dws -Port=8080 -CodeLocation="/devt/JSONServer/Sample"
