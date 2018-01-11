@@ -20,6 +20,7 @@ Files contained in this folder (in the order you might want to use them):
 |-----|---------|
 | README.MD | This file (well done, you are reading it already!) |
 | Dockerfile   | Defines the docker image |
+| entry.sh | Script which runs when the image starts |
 | build | Build the Docker image |
 | run | Run the Docker image |
 | cleanup | Stop and remove all traces of the image |
