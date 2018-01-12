@@ -525,7 +525,7 @@
 ⍝        document.getElementById("result").innerHTML = resp;
 ⍝        }
 ⍝      else {
-⍝        var resp = "Error processing request: " + this.statua + " " + this.statusText;
+⍝        var resp = "Error processing request: " + this.status + " " + this.statusText;
 ⍝        }
 ⍝      }
 ⍝    }
