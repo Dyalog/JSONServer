@@ -10,7 +10,7 @@
     :Field Public Debug←0
 
 ⍝ Fields related to running a secure server (to be implemented)
-⍝    :Field Public Secure←0
+    :Field Public Secure←0
 ⍝    :Field Public RootCertDir
 ⍝    :Field Public SSLValidation
 ⍝    :Field Public ServerCertFile
@@ -67,7 +67,10 @@
       CheckRC(rc msg)←LoadConga
       CheckRC(rc msg)←CheckCodeLocation
       CheckRC(rc msg)←StartServer
-      Log 'JSONServer started on port ',⍕Port
+      Log'JSONServer started on port ',⍕Port
+      :If HtmlInterface
+          Log'Click http',(~Secure)↓'s://localhost:',(⍕Port),' to access web interface'
+      :EndIf
     ∇
 
     ∇ (rc msg)←Stop;ts
@@ -285,6 +288,7 @@
     ∇
 
     ∇ HandleJSONRequest ns;payload;fn
+      ExitIf HtmlInterface∧ns.Req.Page≡'/favicon.ico'
       :If 0∊⍴fn←1↓'.'@('/'∘=)ns.Req.Page
           ExitIf('No function specified')ns.Req.FailIf~HtmlInterface∧'get'≡ns.Req.Method
           ns.Req.Response.Headers←1 2⍴'Content-Type' 'text/html'
@@ -292,14 +296,14 @@
           →0
       :EndIf
      
+      ExitIf('Could not locate method "',fn,'"')ns.Req.FailIf{0::1 ⋄ 3≠CodeLocation.⎕NC ⍵}fn
+
       :Trap 0
           payload←0 ⎕JSON ns.Req.Body
       :Else
           →0⍴⍨'Could not parse payload as JSON'ns.Req.FailIf 1
       :EndTrap
-     
-      ExitIf('Could not locate method "',fn,'"')ns.Req.FailIf{0::1 ⋄ 3≠CodeLocation.⎕NC ⍵}fn
-     
+          
       :If ~0∊⍴AllowedFns
           ExitIf('"',fn,'" is not an allowed method')ns.Req.FailIf~(⊂fn)∊AllowedFns
       :EndIf
@@ -322,10 +326,11 @@
 
     ∇ r←Respond res;status;z
       status←(⊂'HTTP/1.1'),res.((⍕Status)StatusText)
+      :If res.Status≠200 ⋄ res.Headers←2 2⍴'content-type' 'text/html' 'content-length'(⍕res.JSON) ⋄ :EndIf
       :If Logging
           ⎕←('G⊂9999/99/99 @ 99:99:99⊃'⎕FMT 100⊥6↑⎕TS)status res.Headers res.JSON
       :EndIf
-      :If 0≠1⊃z←#.DRC.Send obj(status,res.Headers res.JSON)
+      :If 0≠1⊃z←#.DRC.Send obj(status,res.Headers res.JSON)1
           Log'Conga error when sending response'
           Log⍕z
       :EndIf
@@ -371,7 +376,7 @@
           (Page query)←'?'split Input
           Page←PercentDecode Page
           :If Complete←'get'≡Method
-          :AndIf ##.HtmlInterface∧Page≢,'/'
+          :AndIf ##.HtmlInterface∧~(⊂Page)∊(,'/')'/favicon.ico'
               →0⍴⍨'(Request method should be POST)'FailIf'post'≢Method
               →0⍴⍨'(Bad URI)'FailIf'/'≠⊃Page
               →0⍴⍨'(Content-Type should be application/json)'FailIf'application/json'≢lc'content-type'GetFromTable Headers
@@ -477,6 +482,7 @@
     ∇
 
     ∇ r←HtmlPage
+      :Access public shared
       r←ScriptFollows
 ⍝<!DOCTYPE html>
 ⍝<html>
@@ -519,16 +525,16 @@
 ⍝  xhttp.setRequestHeader("Content-Type", "application/json");
 ⍝
 ⍝  xhttp.onreadystatechange = function() {
-⍝    if (this.status != 0) {
+⍝    if (this.readyState == 4){
+⍝//      var resp = "";
 ⍝      if (this.status == 200) {
 ⍝        var resp = "<pre><code>" + this.responseText + "</code></pre>";
-⍝        document.getElementById("result").innerHTML = resp;
-⍝        }
-⍝      else {
-⍝        var resp = "Error processing request: " + this.status + " " + this.statusText;
-⍝        }
+⍝      } else {
+⍝        var resp = "<span style='color:red;'>" + this.statusText + "</span>";
 ⍝      }
+⍝      document.getElementById("result").innerHTML = resp; 
 ⍝    }
+⍝  }
 ⍝  xhttp.send(document.getElementById("payload").value);
 ⍝}
 ⍝</script>
