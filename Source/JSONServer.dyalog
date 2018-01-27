@@ -297,13 +297,13 @@
       :EndIf
      
       ExitIf('Could not locate method "',fn,'"')ns.Req.FailIf{0::1 ⋄ 3≠CodeLocation.⎕NC ⍵}fn
-
+     
       :Trap 0
-          payload←0 ⎕JSON ns.Req.Body
+          payload←{0∊⍴⍵:⍵ ⋄ 0 ⎕JSON ⍵}ns.Req.Body
       :Else
           →0⍴⍨'Could not parse payload as JSON'ns.Req.FailIf 1
       :EndTrap
-          
+     
       :If ~0∊⍴AllowedFns
           ExitIf('"',fn,'" is not an allowed method')ns.Req.FailIf~(⊂fn)∊AllowedFns
       :EndIf
@@ -375,7 +375,7 @@
           Host←'host'GetFromTable Headers
           (Page query)←'?'split Input
           Page←PercentDecode Page
-          :If Complete←'get'≡Method
+          :If Complete←('get'≡Method)∨('content-length' GetFromTable Headers)≡,'0'
           :AndIf ##.HtmlInterface∧~(⊂Page)∊(,'/')'/favicon.ico'
               →0⍴⍨'(Request method should be POST)'FailIf'post'≢Method
               →0⍴⍨'(Bad URI)'FailIf'/'≠⊃Page
@@ -532,7 +532,7 @@
 ⍝      } else {
 ⍝        var resp = "<span style='color:red;'>" + this.statusText + "</span>";
 ⍝      }
-⍝      document.getElementById("result").innerHTML = resp; 
+⍝      document.getElementById("result").innerHTML = resp;
 ⍝    }
 ⍝  }
 ⍝  xhttp.send(document.getElementById("payload").value);
