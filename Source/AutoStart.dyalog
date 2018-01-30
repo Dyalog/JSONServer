@@ -33,12 +33,4 @@
              {}⎕DL 10
          :EndWhile
      :EndIf
- :Else
-     :If ~0∊⍴ts←{0::⍵ ⋄ ,'ZI4,<->,ZI2,<->,ZI2,<T>,ZI2,<:>,ZI2,<:>,ZI2,<Z>'⎕FMT 1 6⍴⊃3 ⎕NINFO ⎕WSID,'.dws'}''
-         t←HttpCommand.Get'http://api.github.com/repos/Dyalog/JSONServer/commits?since=',ts
-         :If ~0∊⍴t.Data
-             n←≢commits←⎕JSON t.Data ⍝ last commit should be for this workspace
-             ⎕←'This workspace is ',(⍕n-1),' commit',(n=2)↓'s behind the GitHub repository http://github.com/Dyalog/JSONServer'
-         :EndIf
-     :EndIf
  :EndIf
