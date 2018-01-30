@@ -23,6 +23,18 @@
     :Field _stopped←1
 
 
+    ∇ {r}←Log msg;ts
+      :Access public overridable
+      ts←,'I4,</>,ZI2,</>,ZI2,< @ >,ZI2,<:>,ZI2,<:>,ZI2'⎕FMT 1 6⍴⎕TS
+      :If 1=≢⍴msg←⍕msg
+      :OrIf 1=⊃⍴msg
+          r←ts,' - ',msg
+      :Else
+          r←ts,∊(⎕UCS 13),msg
+      :EndIf
+      ⎕←r
+    ∇
+
     ∇ make
       :Access public
       :Implements constructor
@@ -210,7 +222,7 @@
       {}Server&⍬
     ∇
 
-    ∇ Server arg;wres;rc;obj;evt;data
+    ∇ Server arg;wres;rc;obj;evt;data;ref;ip
       :While ~_stop
           wres←#.DRC.Wait ServerName 5000 ⍝ Wait for WaitTimeout before timing out
           ⍝ wres: (return code) (object name) (command) (data)
@@ -219,17 +231,15 @@
           :Case 0
               :Select evt
               :Case 'Error'
-                  :If ServerName≡obj
-                      Stop←1
-                  :Else
-                      Connections.⎕EX obj
-                  :EndIf
+                  Stop←ServerName≡obj
                   :If 0≠4⊃wres
-                      Log'RunServer: DRC.Wait reported error ',(⍕#.Conga.Error 4⊃wres),' on ',2⊃wres
+                      Log'RunServer: DRC.Wait reported error ',(⍕#.Conga.Error 4⊃wres),' on ',(2⊃wres),GetIP obj
                   :EndIf
+                  Connections.⎕EX obj
      
               :Case 'Connect'
                   obj Connections.⎕NS''
+                  (Connections⍎obj).IP←2⊃2⊃#.DRC.GetProp obj'PeerAddr'
      
               :CaseList 'HTTPHeader' 'HTTPTrailer' 'HTTPChunk' 'HTTPBody'
                   {}(Connections⍎obj){t←⍺ HandleRequest ⍵ ⋄ ⎕EX t/⍕⍺}&wres
@@ -282,7 +292,7 @@
               :If ns.Req.Response.Status=200
                   HandleJSONRequest ns
               :EndIf
-              r←Respond ns.Req.Response
+              r←obj Respond ns.Req.Response
           :EndIf
       :EndHold
     ∇
@@ -318,23 +328,27 @@
       :EndTrap
      
       :Trap 0
-          ns.Req.Response.JSON←1 ⎕JSON payload
+          ns.Req.Response.JSON←⎕UCS'UTF-8'⎕UCS 1 ⎕JSON payload
       :Else
           ExitIf'Could not format payload as JSON'ns.Req.FailIf 1
       :EndTrap
     ∇
 
-    ∇ r←Respond res;status;z
+    ∇ r←obj Respond res;status;z
       status←(⊂'HTTP/1.1'),res.((⍕Status)StatusText)
       :If res.Status≠200 ⋄ res.Headers←2 2⍴'content-type' 'text/html' 'content-length'(⍕res.JSON) ⋄ :EndIf
       :If Logging
           ⎕←('G⊂9999/99/99 @ 99:99:99⊃'⎕FMT 100⊥6↑⎕TS)status res.Headers res.JSON
       :EndIf
       :If 0≠1⊃z←#.DRC.Send obj(status,res.Headers res.JSON)1
-          Log'Conga error when sending response'
+          Log'Conga error when sending response',GetIP obj
           Log⍕z
       :EndIf
       r←1
+    ∇
+
+    ∇ ip←GetIP objname
+      ip←{6::'' ⋄ ' (IP Address ',(⍕(Connections⍎⍵).IP),')'}objname
     ∇
 
     :Class Request
@@ -370,12 +384,12 @@
           Method←lc Method
          
           Response←⎕NS''
-          Response.(Status StatusText Headers JSON)←200 'OK'(1 2⍴'Content-Type' 'application/json')''
+          Response.(Status StatusText Headers JSON)←200 'OK'(1 2⍴'Content-Type' 'application/json; charset=utf-8')''
          
           Host←'host'GetFromTable Headers
           (Page query)←'?'split Input
           Page←PercentDecode Page
-          :If Complete←('get'≡Method)∨('content-length' GetFromTable Headers)≡,'0'
+          :If Complete←('get'≡Method)∨('content-length'GetFromTable Headers)≡,'0'
           :AndIf ##.HtmlInterface∧~(⊂Page)∊(,'/')'/favicon.ico'
               →0⍴⍨'(Request method should be POST)'FailIf'post'≢Method
               →0⍴⍨'(Bad URI)'FailIf'/'≠⊃Page
@@ -439,8 +453,8 @@
     ∇ r←isRelPath w
       r←{{~'/\'∊⍨(⎕IO+2×('Win'≡3↑⊃#.⎕WG'APLVersion')∧':'∊⍵)⊃⍵}3↑⍵}w
     ∇
-    lc←(819⌶)
-    Log←{⎕←⍕⍵}
+
+    lc←(819⌶) ⍝ lower case
 
     ∇ (rc msg)←{root}LoadFromFolder path;type;name;nsName;parts;ns;files;folders;file;folder;ref;r;m
       :Access public shared
@@ -522,7 +536,7 @@
 ⍝  fn = (0 == fn.indexOf('/')) ? fn : '/' + fn;
 ⍝
 ⍝  xhttp.open("POST", fn, true);
-⍝  xhttp.setRequestHeader("Content-Type", "application/json");
+⍝  xhttp.setRequestHeader("Content-Type", "application/json; charset=utf-8");
 ⍝
 ⍝  xhttp.onreadystatechange = function() {
 ⍝    if (this.readyState == 4){
