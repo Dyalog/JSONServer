@@ -231,7 +231,7 @@
           :Case 0
               :Select evt
               :Case 'Error'
-                  Stop←ServerName≡obj
+                  _stop←ServerName≡obj
                   :If 0≠4⊃wres
                       Log'RunServer: DRC.Wait reported error ',(⍕#.Conga.Error 4⊃wres),' on ',(2⊃wres),GetIP obj
                   :EndIf
