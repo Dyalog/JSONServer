@@ -336,7 +336,9 @@
 
     ∇ r←obj Respond res;status;z
       status←(⊂'HTTP/1.1'),res.((⍕Status)StatusText)
-      :If res.Status≠200 ⋄ res.Headers←2 2⍴'content-type' 'text/html' 'content-length'(⍕≢res.JSON) ⋄ :EndIf
+      :If res.Status≠200
+          res.Headers←1 2⍴'content-type' 'text/html'
+      :EndIf
       :If Logging
           ⎕←('G⊂9999/99/99 @ 99:99:99⊃'⎕FMT 100⊥6↑⎕TS)status res.Headers res.JSON
       :EndIf
