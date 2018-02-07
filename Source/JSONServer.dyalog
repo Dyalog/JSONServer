@@ -1,6 +1,7 @@
 ﻿:Class JSONServer
     :Field Public AcceptFrom←⍬    ⍝ IP addressed to accept requests from - empty means all
     :Field Public Port←8080       ⍝
+    :Field Public BlockSize←10000 ⍝ Conga block size
     :Field Public CodeLocation←#
     :Field Public InitializeFn←'Initialize' ⍝ name of the application "bootstrap" function
     :Field Public AllowedFns←''   ⍝ list of functions to be "exposed" by this service, can be a vector or comma-delimited list of function names
@@ -204,7 +205,7 @@
 
     ∇ (rc msg)←StartServer;r
       msg←'Unable to start server'
-      :If 98 10048∊⍨rc←1⊃r←#.DRC.Srv'' ''Port'http' 10000 ⍝ 98=Linux, 10048=Windows
+      :If 98 10048∊⍨rc←1⊃r←#.DRC.Srv'' ''Port'http' BlockSize ⍝ 98=Linux, 10048=Windows
           →0⊣msg←'Server could not start - port ',(⍕Port),' is already in use'
       :ElseIf 0=rc
           (_started _stopped)←1 0
