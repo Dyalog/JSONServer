@@ -54,7 +54,7 @@
       :Trap 0
           (rc msg)←(r←⎕NEW ⎕THIS args).Start
       :Else
-          (r rc msg)←'' ¯1(⊃⎕DMX.EM)
+          (r rc msg)←'' ¯1 ⎕DMX.EM
       :EndTrap
       r←(r(rc msg))
     ∇
