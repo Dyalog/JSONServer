@@ -245,11 +245,11 @@
               :CaseList 'HTTPHeader' 'HTTPTrailer' 'HTTPChunk' 'HTTPBody'
                   {}(Connections⍎obj){t←⍺ HandleRequest ⍵ ⋄ ⎕EX t/⍕⍺}&wres
      
-              :Case 'Timeout'
+              :CaseList 'Closed' 'Timeout'
      
               :Else ⍝ unhandled event
-                  2 Log'Unhandled Conga event:'
-                  2 Log⍕res
+                  Log'Unhandled Conga event:'
+                  Log⍕wres
               :EndSelect ⍝ evt
      
           :Case 1010 ⍝ Object Not found
@@ -298,7 +298,7 @@
       :EndHold
     ∇
 
-    ∇ HandleJSONRequest ns;payload;fn
+    ∇ HandleJSONRequest ns;payload;fn;nameClass
       ExitIf HtmlInterface∧ns.Req.Page≡'/favicon.ico'
       :If 0∊⍴fn←1↓'.'@('/'∘=)ns.Req.Page
           ExitIf('No function specified')ns.Req.FailIf~HtmlInterface∧'get'≡ns.Req.Method
@@ -307,7 +307,7 @@
           →0
       :EndIf
      
-      ExitIf('Could not locate method "',fn,'"')ns.Req.FailIf{0::1 ⋄ 3≠CodeLocation.⎕NC ⍵}fn
+      ExitIf('Could not locate method "',fn,'"')ns.Req.FailIf 3≠⌊|nameClass←{0::0 ⋄ CodeLocation.⎕NC⊂⍵}fn
      
       :Trap 0
           payload←{0∊⍴⍵:⍵ ⋄ 0 ⎕JSON ⍵}ns.Req.Body
@@ -319,7 +319,7 @@
           ExitIf('"',fn,'" is not an allowed method')ns.Req.FailIf~(⊂fn)∊AllowedFns
       :EndIf
      
-      ExitIf('"',fn,'" is not a monadic result-returning function')ns.Req.FailIf 1 1 0≢⊃CodeLocation.⎕AT fn
+      ExitIf('"',fn,'" is not a monadic result-returning function')ns.Req.FailIf (nameClass<0)⍱1 1 0≡⊃CodeLocation.⎕AT fn
      
       :Trap 0
           payload←(CodeLocation⍎fn)payload
@@ -396,7 +396,7 @@
           :AndIf ##.HtmlInterface∧~(⊂Page)∊(,'/')'/favicon.ico'
               →0⍴⍨'(Request method should be POST)'FailIf'post'≢Method
               →0⍴⍨'(Bad URI)'FailIf'/'≠⊃Page
-              →0⍴⍨'(Content-Type should be application/json)'FailIf'application/json'~Begins lc'content-type'GetFromTable Headers
+              →0⍴⍨'(Content-Type should be application/json)'FailIf~'application/json'begins lc'content-type'GetFromTable Headers
           :EndIf
           →0⍴⍨'(Cannot accept query parameters)'FailIf~0∊⍴query
         ∇
@@ -452,7 +452,6 @@
 
     :Section Utilities
     ExitIf←→⍴∘0
-    Begins←{⍺≡(≢⍺)↑⍵}
     CheckRC←ExitIf(0∘≠⊃)
     ∇ r←isRelPath w
       r←{{~'/\'∊⍨(⎕IO+2×('Win'≡3↑⊃#.⎕WG'APLVersion')∧':'∊⍵)⊃⍵}3↑⍵}w
