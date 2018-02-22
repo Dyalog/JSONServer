@@ -205,7 +205,7 @@
 
     ∇ (rc msg)←StartServer;r
       msg←'Unable to start server'
-      :If 98 10048∊⍨rc←1⊃r←#.DRC.Srv'' ''Port'http' BlockSize ⍝ 98=Linux, 10048=Windows
+      :If 98 10048∊⍨rc←1⊃r←#.DRC.Srv'' ''Port'http'BlockSize ⍝ 98=Linux, 10048=Windows
           →0⊣msg←'Server could not start - port ',(⍕Port),' is already in use'
       :ElseIf 0=rc
           (_started _stopped)←1 0
@@ -396,7 +396,7 @@
           :AndIf ##.HtmlInterface∧~(⊂Page)∊(,'/')'/favicon.ico'
               →0⍴⍨'(Request method should be POST)'FailIf'post'≢Method
               →0⍴⍨'(Bad URI)'FailIf'/'≠⊃Page
-              →0⍴⍨'(Content-Type should be application/json)'FailIf'application/json'≢lc'content-type'GetFromTable Headers
+              →0⍴⍨'(Content-Type should be application/json)'FailIf'application/json'~Begins lc'content-type'GetFromTable Headers
           :EndIf
           →0⍴⍨'(Cannot accept query parameters)'FailIf~0∊⍴query
         ∇
@@ -452,6 +452,7 @@
 
     :Section Utilities
     ExitIf←→⍴∘0
+    Begins←{⍺≡(≢⍺)↑⍵}
     CheckRC←ExitIf(0∘≠⊃)
     ∇ r←isRelPath w
       r←{{~'/\'∊⍨(⎕IO+2×('Win'≡3↑⊃#.⎕WG'APLVersion')∧':'∊⍵)⊃⍵}3↑⍵}w
