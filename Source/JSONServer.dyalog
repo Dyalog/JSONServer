@@ -151,7 +151,7 @@
       :EndIf
      
       :Trap 999 ⍝ Conga.Init signals 999 on error
-          #.DRC←#.Conga.Init''
+          #.DRC←#.Conga.Init'JSONServer'
       :Else
           (rc msg)←2 'Unable to initialize Conga'
           →0
@@ -269,9 +269,6 @@
       (rc obj evt data)←req
       r←0
       :Hold obj
-          :If Debug
-              ∘∘∘
-          :EndIf
           :Select evt
           :Case 'HTTPHeader'
               ns.Req←⎕NEW Request data
@@ -291,6 +288,11 @@
      
           :If ns.Req.Complete
               :If ns.Req.Response.Status=200
+     
+                  :If Debug
+                      ∘∘∘
+                  :EndIf
+     
                   HandleJSONRequest ns
               :EndIf
               r←obj Respond ns.Req.Response
@@ -319,7 +321,7 @@
           ExitIf('"',fn,'" is not an allowed method')ns.Req.FailIf~(⊂fn)∊AllowedFns
       :EndIf
      
-      ExitIf('"',fn,'" is not a monadic result-returning function')ns.Req.FailIf (nameClass<0)⍱1 1 0≡⊃CodeLocation.⎕AT fn
+      ExitIf('"',fn,'" is not a monadic result-returning function')ns.Req.FailIf(nameClass<0)⍱1 1 0≡⊃CodeLocation.⎕AT fn
      
       :Trap 0
           payload←(CodeLocation⍎fn)payload
@@ -379,7 +381,7 @@
           r←a{⍺←'' ⋄ ⍵:⍵⊣Response.(Status StatusText)←400('Bad Request',(3×0∊⍴⍺)↓' - ',⍺) ⋄ ⍵}w
         ∇
 
-        ∇ make args;query;origin
+        ∇ make args;query;origin;length
           :Access public
           :Implements constructor
           (Method Input HTTPVersion Headers)←args
@@ -392,7 +394,9 @@
           Host←'host'GetFromTable Headers
           (Page query)←'?'split Input
           Page←PercentDecode Page
-          :If Complete←('get'≡Method)∨('content-length'GetFromTable Headers)≡,'0'
+          Complete←('get'≡Method)∨(length←'content-length'GetFromTable Headers)≡,'0' ⍝ we're a GET or 0 content-length
+          Complete∨←(0∊⍴length)>∨/'chunked'⍷'transfer-encoding'GetFromTable Headers ⍝ or no length supplied and we're not chunked
+          :If Complete
           :AndIf ##.HtmlInterface∧~(⊂Page)∊(,'/')'/favicon.ico'
               →0⍴⍨'(Request method should be POST)'FailIf'post'≢Method
               →0⍴⍨'(Bad URI)'FailIf'/'≠⊃Page
