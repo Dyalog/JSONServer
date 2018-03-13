@@ -2,13 +2,18 @@
     :Field Public AcceptFrom←⍬    ⍝ IP addressed to accept requests from - empty means all
     :Field Public Port←8080       ⍝
     :Field Public BlockSize←10000 ⍝ Conga block size
-    :Field Public CodeLocation←#
+    :Field Public CodeLocation←#  ⍝ application code location
     :Field Public InitializeFn←'Initialize' ⍝ name of the application "bootstrap" function
-    :Field Public AllowedFns←''   ⍝ list of functions to be "exposed" by this service, can be a vector or comma-delimited list of function names
     :Field Public ConfigFile←''
     :Field Public Logging←0       ⍝ turn logging on/off
-    :Field Public HtmlInterface←1
+    :Field Public HtmlInterface←1 ⍝ allow the HTML interface
     :Field Public Debug←0
+    :Field Public ClassInterface←1 ⍝ allow for the instantiation and use of classes, 0=no, 1=yes but restrict classes/instance names to not contain #, 2=yes but allow # in class/instance names
+    :Field Public FlattenOutput←2  ⍝ 0=no, 1=yes, 2=yes with notification
+    :Field Public IncludeFns←''    ⍝
+    :Field Public ExcludeFns←''    ⍝
+    :Field _includeRegex←''
+    :Field _excludeRegex←''
 
 ⍝ Fields related to running a secure server (to be implemented)
     :Field Public Secure←0
@@ -17,12 +22,10 @@
 ⍝    :Field Public ServerCertFile
 ⍝    :Field Public ServerKeyFile
 
-    :Field Folder←''
     :Field _configLoaded←0
     :Field _stop←0               ⍝ set to 1 to stop server
     :Field _started←0
     :Field _stopped←1
-
 
     ∇ {r}←Log msg;ts
       :Access public overridable
@@ -49,6 +52,16 @@
       (Port CodeLocation)←2↑args,(≢,args)↓Port CodeLocation
     ∇
 
+    ∇ UpdateRegex arg;t
+      :Implements Trigger IncludeFns, ExcludeFns
+      t←makeRegEx¨(⊂'')~⍨∪,⊆arg.NewValue
+      :If arg.Name≡'IncludeFns'
+          _includeRegex←t
+      :Else
+          _excludeRegex←t
+      :EndIf
+    ∇
+
     ∇ r←Run args;msg;rc
       :Access shared public
       :Trap 0
@@ -71,11 +84,6 @@
       :EndIf
      
       CheckRC(rc msg)←LoadConfiguration
-     
-      :If 1=≡,AllowedFns
-          AllowedFns←(⊂'')~⍨{⍵⊆⍨','≠⍵}',',AllowedFns
-      :EndIf
-      AllowedFns←,(⊆⍣(~0∊⍴AllowedFns)),AllowedFns
       CheckRC(rc msg)←CheckPort
       CheckRC(rc msg)←LoadConga
       CheckRC(rc msg)←CheckCodeLocation
@@ -136,7 +144,6 @@
       :EndIf
     ∇
 
-
     ∇ (rc msg)←LoadConga;dyalog
       (rc msg)←0 ''
      
@@ -193,7 +200,7 @@
      
       :If ~0∊⍴InitializeFn  ⍝ initialization function specified?
           :If 3=CodeLocation.⎕NC InitializeFn ⍝ does it exist?
-              :If 1 0 0≡⊃CodeLocation.⎕AT InitializeFn ⍝ with the correct syntax?
+              :If 1 0 0≡⊃CodeLocation.⎕AT InitializeFn ⍝ result-returning niladic?
                   res←,⊆CodeLocation⍎InitializeFn        ⍝ run it
                   CheckRC(rc msg)←2↑res,(⍴res)↓¯1('"',(⍕CodeLocation),'.',InitializeFn,'" did not return a 0 return code')
               :Else
@@ -303,37 +310,52 @@
     ∇ HandleJSONRequest ns;payload;fn;nameClass
       ExitIf HtmlInterface∧ns.Req.Page≡'/favicon.ico'
       :If 0∊⍴fn←1↓'.'@('/'∘=)ns.Req.Page
-          ExitIf('No function specified')ns.Req.FailIf~HtmlInterface∧'get'≡ns.Req.Method
+          ExitIf('No function specified')ns.Req.Fail 400×~HtmlInterface∧'get'≡ns.Req.Method
           ns.Req.Response.Headers←1 2⍴'Content-Type' 'text/html'
           ns.Req.Response.JSON←HtmlPage
           →0
       :EndIf
      
-      ExitIf('Could not locate method "',fn,'"')ns.Req.FailIf 3≠⌊|nameClass←{0::0 ⋄ CodeLocation.⎕NC⊂⍵}fn
-     
-      :Trap 0
+      :Trap Debug↓0
           payload←{0∊⍴⍵:⍵ ⋄ 0 ⎕JSON ⍵}ns.Req.Body
       :Else
-          →0⍴⍨'Could not parse payload as JSON'ns.Req.FailIf 1
+          →0⍴⍨'Could not parse payload as JSON'ns.Req.Fail 400
       :EndTrap
      
-      :If ~0∊⍴AllowedFns
-          ExitIf('"',fn,'" is not an allowed method')ns.Req.FailIf~(⊂fn)∊AllowedFns
-      :EndIf
-     
-      ExitIf('"',fn,'" is not a monadic result-returning function')ns.Req.FailIf(nameClass<0)⍱1 1 0≡⊃CodeLocation.⎕AT fn
-     
-      :Trap 0
-          payload←(CodeLocation⍎fn)payload
+      :If ClassInterface
+      :AndIf (⊂fn)∊'_Classes' '_Delete' '_Get' '_Instances' '_New' '_Run' '_Serialize' '_Set'
+          :Trap Debug↓0
+              payload←(⍎fn)payload
+          :Else
+              ns.Req.Response.JSON←1 ⎕JSON ⎕DMX.(EM Message)
+              ExitIf('Error running method "',fn,'"')ns.Req.Fail 500
+          :EndTrap
       :Else
-          ns.Req.Response.JSON←1 ⎕JSON ⎕DMX.(EM Message)
-          ExitIf('Error running method "',fn,'"')ns.Req.FailIf 1
-      :EndTrap
      
-      :Trap 0
+          ExitIf('Invalid function "',fn,'"')ns.Req.Fail CheckFunctionName fn
+          ExitIf('Invalid function "',fn,'"')ns.Req.Fail 404×3≠⌊|nameClass←{0::0 ⋄ CodeLocation.⎕NC⊂⍵}fn
+          ExitIf('"',fn,'" is not a monadic result-returning function')ns.Req.Fail 400×(nameClass<0)⍱1 1 0≡⊃CodeLocation.⎕AT fn
+     
+          :Trap Debug↓0
+              payload←(CodeLocation⍎fn)payload
+          :Else
+              ns.Req.Response.JSON←1 ⎕JSON ⎕DMX.(EM Message)
+              ExitIf('Error running method "',fn,'"')ns.Req.Fail 500
+          :EndTrap
+      :EndIf
+      :Trap Debug↓0
           ns.Req.Response.JSON←⎕UCS'UTF-8'⎕UCS 1 ⎕JSON payload
       :Else
-          ExitIf'Could not format payload as JSON'ns.Req.FailIf 1
+          :If FlattenOutput>0
+              :Trap 0
+                  ns.Req.Response.JSON←⎕UCS'UTF-8'⎕UCS JSON payload
+                  :If FlattenOutput=2
+                      Log'"',fn,'" returned data of rank > 1'
+                  :EndIf
+              :Else
+              :EndTrap
+          :EndIf
+          ExitIf'Could not format payload as JSON'ns.Req.Fail 500
       :EndTrap
     ∇
 
@@ -356,6 +378,22 @@
       ip←{6::'' ⋄ ' (IP Address ',(⍕(Connections⍎⍵).IP),')'}objname
     ∇
 
+    ∇ r←CheckFunctionName fn
+    ⍝ checks the requested function name and returns
+    ⍝    0 if the function is allowed
+    ⍝  404 (not found) if the list of allowed functions is non-empty and fn is not in the list
+    ⍝  403 (forbidden) if fn is in the list of disallowed functions
+      :Access public
+      r←0
+      fn←,⊆fn
+      :If ~0∊⍴_includeRegex
+          ExitIf r←404×0∊⍴(_includeRegex ⎕S'%')fn
+      :EndIf
+      :If ~0∊⍴_excludeRegex
+          r←403×~0∊⍴(_excludeRegex ⎕S'%')fn
+      :EndIf
+    ∇
+
     :Class Request
         :Field Public Instance Complete←0        ⍝ do we have a complete request?
         :Field Public Instance Input←''
@@ -376,9 +414,11 @@
         lc←(819⌶)
         begins←{⍺≡(⍴⍺)↑⍵}
 
-        ∇ {r}←{a}FailIf w
+        ∇ {r}←{a}Fail w
           :Access public
-          r←a{⍺←'' ⋄ ⍵:⍵⊣Response.(Status StatusText)←400('Bad Request',(3×0∊⍴⍺)↓' - ',⍺) ⋄ ⍵}w
+          r←a{⍺←''
+              0≠⍵:⍵⊣Response.(Status StatusText)←⍵('Bad Request',(3×0∊⍴⍺)↓' - ',⍺)
+              ⍵}w
         ∇
 
         ∇ make args;query;origin;length
@@ -398,11 +438,11 @@
           Complete∨←(0∊⍴length)>∨/'chunked'⍷'transfer-encoding'GetFromTable Headers ⍝ or no length supplied and we're not chunked
           :If Complete
           :AndIf ##.HtmlInterface∧~(⊂Page)∊(,'/')'/favicon.ico'
-              →0⍴⍨'(Request method should be POST)'FailIf'post'≢Method
-              →0⍴⍨'(Bad URI)'FailIf'/'≠⊃Page
-              →0⍴⍨'(Content-Type should be application/json)'FailIf~'application/json'begins lc'content-type'GetFromTable Headers
+              →0⍴⍨'(Request method should be POST)'Fail 405×'post'≢Method
+              →0⍴⍨'(Bad URI)'Fail 400×'/'≠⊃Page
+              →0⍴⍨'(Content-Type should be application/json)'Fail 400×~'application/json'begins lc'content-type'GetFromTable Headers
           :EndIf
-          →0⍴⍨'(Cannot accept query parameters)'FailIf~0∊⍴query
+          →0⍴⍨'(Cannot accept query parameters)'Fail 400×~0∊⍴query
         ∇
 
 
@@ -454,14 +494,238 @@
 
     :EndClass
 
+    :Section ClassInterface
+
+      has←{ ⍝ checks that arguments exist in a namespace
+          9≠⎕NC'⍺':11 'Request parameters are not bundled in an object'
+          names←,⊆⍵
+          ∨/mask←0=⍺.⎕NC names:6('Request is missing parameter',(1=+/mask)↓'s: ',2↓∊', '∘,¨mask/names)
+          0 ''
+      }
+
+    ∇ r←initResult w
+      r←⎕NS''
+      r.(rc message)←0 ''
+      :If ~0∊⍴w
+          r⍎¨(,⊆w),¨⊂'←'''''
+      :EndIf
+    ∇
+
+    ∇ r←{type}checkName name;mask;t
+      type←{6::⍵ ⋄ type}1 ⍝ 1=instance, 2=class
+      r←0 ''
+      :Select ⊃ClassInterface
+      :Case 0
+          r←11 'Class interface has not been enabled'
+      :Case 1
+          :If '#'∊name
+              r←11('Invalid ',(type⊃'instance' 'class'),' location: "',name,'"')
+          :EndIf
+      :EndSelect
+      :If (9.2 9.4[,type])≢,CodeLocation.⎕NC name
+          r←6((type⊃'Instance' 'Class'),' not found')
+      :EndIf
+      :If ∨/mask←∨/¨(⍷∘name)¨t←'JSONServer.' 'Conga.' 'DRC.'
+          r←11('Request cannot refer to ',⊃mask/t)
+      :EndIf
+    ∇
+
+    ∇ r←_Classes dummy
+    ⍝ returns class names
+      r←initResult'classes'
+      r.classes←CodeLocation.⎕NL ¯9.4
+    ∇
+
+    ∇ r←_Delete instances;mask;t
+      r←initResult'deleted' 'notDeleted'
+      :If 9=⎕NC'instances'
+          CheckRC r.(rc message)←instances has'instanceName'
+          instances←instances.instanceName
+      :EndIf
+      instances←,⊆instances
+      :If ∨/mask←0≠⊃¨t←1 checkName¨instances
+          r.message←2⊃¨mask/t
+          r.rc←{(1+1=≢⍵)⊃999,⍵}∪1⊃¨t ⍝ 999 indicates multiple errors
+          →0
+      :EndIf
+      ⎕EX instances
+      r.(deleted notDeleted)←1↓¨(0 1,0=⎕NC instances)⌸'zz' 'zz',instances
+    ∇
+
+    ∇ r←_Get ns
+    ⍝ ns.instanceName - instance name
+    ⍝ ns.what - public field, property, or niladic method name
+      r←initResult'value'
+     
+      CheckRC r.(rc message)←ns has'instanceName' 'what'
+      CheckRC r.(rc message)←1 checkName ns.instanceName
+     
+      :Trap 0
+          r.value←⍎ns.instanceName,'.',ns.what
+      :Else
+          r.(rc message)←⎕DMX.EN(⎕DMX.EM,' while attempting to retrieve ',ns.instanceName,'.',ns.what)
+      :EndTrap
+    ∇
+
+    ∇ r←_Instances dummy
+    ⍝ returns instance names
+      r←initResult'instances'
+      r←⎕NL ¯9.2
+    ∇
+
+    ∇ r←_New ns;arguments;class;none;instance
+    ⍝ create an instance of a class
+    ⍝ class is a namespace (JSON array) of
+    ⍝ className - character vector name of the class to instantiate
+    ⍝ [arguments] - optional array of arguments to pass in the constructor
+     
+      r←initResult'instanceName'
+      arguments←none←⊂'none' ⍝ JSON cannot have scalar strings
+      :If 9=⎕NC'ns'
+          CheckRC r.(rc message)←ns has'className'
+          class←ns.className
+          arguments←{6::arguments ⋄ ⍵.arguments}ns
+      :Else
+          class←ns
+      :EndIf
+     
+      :If 9.4≠CodeLocation.⎕NC⊂class ⍝ check that it's a class (not an instance)
+          r.message←'Class ',class,' not found'
+      :Else
+          :Repeat
+              instance←class,'_',⎕D[?5⍴10]
+          :Until 0=CodeLocation.⎕NC instance
+          :Trap 0
+              ⍎'CodeLocation.',instance,'←CodeLocation.⎕NEW CodeLocation.',class,(arguments≢none)/' arguments'
+              r.instanceName←instance
+          :Else
+              r.(rc message)←⎕DMX.EN(⎕DMX.EM,' while attempting to create instance of ',class)
+          :EndTrap
+      :EndIf
+    ∇
+
+    ∇ r←_Run ns;mask;prefix;exec;rc
+      r←initResult'result'
+      mask←0≠ns.⎕NC'instanceName' 'rarg' 'larg'
+     
+      CheckRC r.(rc message)←ns has'methodName'
+      prefix←'#.CodeLocation.'
+      :If mask[1] ⍝ instanceName?
+          CheckRC r.(rc message)←1 checkName ns.instanceName
+          :If 3≠⌊|(⍎ns.instanceName).⎕NC⊂ns.methodName
+              CheckRC r.(rc message)←6('"',ns.methodName,'" is not a public method in ',ns.instanceName)
+          :EndIf
+          prefix,←ns.instanceName,'.'
+      :Else ⍝ not using an instance, validate the name against Include/Exclude filters
+          :If 0×rc←CheckFunctionName ns.methodName
+              CheckRC r.(rc message)←6('"',ns.methodName,'" is not a valid function to run')
+          :EndIf
+      :EndIf
+      :Select 2⊥mask[2 3]
+      :Case 0 ⍝ niladic
+          exec←prefix,ns.methodName
+      :Case 1 ⍝ error
+          CheckRC r.(rc message)←2 'Left argument supplied with no right argument'
+      :Case 2 ⍝ monadic
+          exec←prefix,ns.methodName,' ns.rarg'
+      :Case 3 ⍝ dyadic
+          exec←'ns.larg ',prefix,ns.methodName,' ns.rarg'
+      :EndSelect
+     
+      :Trap Debug↓0
+          r.result←0(85⌶)exec
+      :Case 85
+          r.(result message)←(⊂'null')'No result returned'
+      :Else
+          r.(rc message)←⎕DMX.EN(⎕DMX.EM,' while attempting to execute ',prefix,ns.methodName)
+      :EndTrap
+    ∇
+
+    ∇ r←_Serialize;name;ref;value
+    ⍝ ns.instanceName - instance name to serialize
+      r←initResult'data'
+      :If 9=⌊⎕NC'instanceName'
+          CheckRC r.(rc message)←instances has'instanceName'
+      :EndIf
+     
+      CheckRC r.(rc message)←1 checkName ns.instanceName
+      ref←⍎ns.instanceName
+      :For name :In ref.⎕NL ¯2
+          :Trap 0
+              value←ref⍎name
+              r.data(name{⍺⍎⍺⍺,'←⍵'})value
+          :Else
+              r.message,←⊂⎕DMX.EM,' while attempting to retrieve ',instanceName,'.',name
+              r.rc⌈←999×r.rc≠0
+          :EndTrap
+      :EndFor
+    ∇
+
+
+    ∇ r←_Set ns
+    ⍝ ns.instanceName - instance name
+    ⍝ ns.what - public field or property
+    ⍝ ns.value - value to set
+      r←initResult''
+      CheckRC r.(rc message)←ns has'instanceName' 'what' 'value'
+      CheckRC r.(rc message)←1 checkName ns.instanceName
+     
+      :Select ⌊|(⍎ns.instanceName).⎕NC⊂ns.what
+      :Case 2
+          :Trap 0
+              ⍎ns.instanceName,'.',ns.what,'←ns.value'
+              r.message←''
+          :Else
+              r.(rc message)←⎕DMX.EN(⎕DMX.EM,' while attempting to set ',ns.instanceName,'.',ns.what)
+          :EndTrap
+      :Case 0
+          r.(rc message)←6('"',ns.what,'" is not a field or property in ',ns.instanceName)
+      :Else
+          r.(rc message)←11('"',ns.what,'" is not a valid field or property name')
+      :EndSelect
+    ∇
+
+    :EndSection
+
     :Section Utilities
+
     ExitIf←→⍴∘0
     CheckRC←ExitIf(0∘≠⊃)
+
+    ∇ r←flatten w
+    ⍝ "flatten" arrays of rank>1
+    ⍝ JSON cannot represent arrays of rank>1, so we "flatten" them into vectors of vectors (of vectors...)
+      :Access public shared
+      r←{(↓⍣(¯1+≢⍴⍵))⍵}w
+    ∇
+
+    ∇ r←leaven w
+    ⍝ "leaven" JSON vectors of vectors (of vectors...) into higher rank arrays
+      :Access public shared
+      r←{
+          0 1∊⍨≡⍵:⍵
+          1=⍴∪≢¨⍵:↑∇¨⍵
+          ⍵
+      }w
+    ∇
+
     ∇ r←isRelPath w
+    ⍝ is path w a relative path?
       r←{{~'/\'∊⍨(⎕IO+2×('Win'≡3↑⊃#.⎕WG'APLVersion')∧':'∊⍵)⊃⍵}3↑⍵}w
     ∇
 
     lc←(819⌶) ⍝ lower case
+    ∇ r←makeRegEx w
+    ⍝ convert a simple search using ? and * to regex
+      :Access public shared
+      r←{0∊⍴⍵:⍵
+          ¯1=⎕NC('A'@(∊∘'?*'))r←⍵:('/'=⊣/⍵)↓(¯1×'/'=⊢/⍵)↓⍵   ⍝ already regex? (remove leading/trailing '/'
+          r←∊(⊂'\.')@('.'=⊢)r  ⍝ escape any periods
+          r←'.'@('?'=⊢)r       ⍝ ? → .
+          r←∊(⊂'.*')@('*'=⊢)r  ⍝ * → .*
+          '^',r,'$'            ⍝ add start and end of string markers
+      }w
+    ∇
 
     ∇ (rc msg)←{root}LoadFromFolder path;type;name;nsName;parts;ns;files;folders;file;folder;ref;r;m
       :Access public shared
@@ -492,6 +756,55 @@
       :EndFor
       msg←¯1↓msg
     ∇
+    :EndSection
+
+    :Section JSON
+
+    ∇ r←{debug}JSON array;typ;ic;drop;ns;preserve;quote;qp;eval;t;n
+    ⍝ JSONify namespaces/arrays with elements of rank>1
+      :Access public
+      debug←{6::⍵ ⋄ debug}0
+      array←{(↓⍣(¯1+≢⍴⍵))⍵}array
+      :Trap debug↓0
+          :If {(0∊⍴⍴⍵)∧0=≡⍵}array ⍝ simple?
+              r←{⎕PP←34 ⋄ (2|⎕DR ⍵)⍲∨/b←'¯'=r←⍕⍵:r ⋄ (b/r)←'-' ⋄ r}array
+              →0⍴⍨2|typ←⎕DR array ⍝ numbers?
+              :Select ⎕NC⊂'array'
+              :CaseList 9.4 9.2
+                  ⎕SIGNAL(⎕THIS≡array)/⊂('EN' 11)('Message' 'Array cannot be a class')
+              :Case 9.1
+                  r←,'{'
+                  :For n :In n←array.⎕NL-2 9.1
+                      r,←'"',(∊((⊂'\'∘,)@(∊∘'"\'))n),'":' ⍝ name
+                      r,←(debug JSON array⍎n),','  ⍝ the value
+                  :EndFor
+                  r←'}',⍨(-1<⍴r)↓r
+              :Else ⋄ r←1⌽'""',escapedChars array
+              :EndSelect
+          :Else ⍝ is not simple (array)
+              r←'['↓⍨ic←isChar array
+              :If 0∊⍴array ⋄ →0⊣r←(1+ic)⊃'[]' '""'
+              :ElseIf ic ⋄ r,←1⌽'""',escapedChars,array ⍝ strings are displayed as such
+              :ElseIf 2=≡array
+              :AndIf 0=≢⍴array
+              :AndIf isChar⊃array ⋄ →0⊣r←⊃array
+              :Else ⋄ r,←1↓∊',',¨debug JSON¨,array
+              :EndIf
+              r,←ic↓']'
+          :EndIf
+      :Else ⍝ :Trap 0
+          (⎕SIGNAL/)⎕DMX.(EM EN)
+      :EndTrap
+    ∇
+
+    isChar←{0 2∊⍨10|⎕DR ⍵}
+      escapedChars←{
+          str←⍵
+          ~1∊b←str∊fnrbt←'"\/',⎕UCS 12 10 13 8 9:str
+          (b/str)←'\"' '\\' '\/' '\f' '\n' '\r' '\b' '\t'[fnrbt⍳b/str]
+          str
+      }
+
     :EndSection
 
     :Section HTML
@@ -547,7 +860,6 @@
 ⍝
 ⍝  xhttp.onreadystatechange = function() {
 ⍝    if (this.readyState == 4){
-⍝//      var resp = "";
 ⍝      if (this.status == 200) {
 ⍝        var resp = "<pre><code>" + this.responseText + "</code></pre>";
 ⍝      } else {

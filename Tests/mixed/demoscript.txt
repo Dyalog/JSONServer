@@ -1,0 +1,102 @@
+﻿⍝ Demo/Test script          
+
+
+]load HttpCommand
+]load /git/JSONServer/Source/JSONServer
+]box on                              
+show←1∘(⎕JSON⍠'Compact' 0)∘⎕JSON  ⍝ show JSON utility
+
+⍝--- Create the Server ---
+
+srv←⎕NEW JSONServer   ⍝ create the server
+srv.ClassInterface←1  ⍝ turn class interface on
+srv.CodeLocation←'/git/JSONServer/Tests/mixed/'  ⍝ where to load the code from
+srv.Port←8080         ⍝ port to listen on
+srv.FlattenOutput←2   ⍝ flatten output with warning message
+srv.ExcludeFns←'_*' '[A-Z].*' ⍝ exclude any functions beginning with _ or uppercase
+srv.Start             ⍝ start the server
+                          
+                          
+⍝--- Create the client ---
+
+cmd←⎕NEW HttpCommand  ⍝ create a client
+baseURL←'http://localhost:8080/'  ⍝ base URL
+cmd.Command←'post'                ⍝ all JSONServer requests are "post"
+'content-type' cmd.AddHeader 'application/json'  ⍝ set the content-type
+                          
+⍝--- Simple function call ---                          
+
+⎕←cmd.URL←baseURL,'reverse'       ⍝ function to call
+cmd.Params←'"Dyalog JSONServer"'  ⍝ data to pass (simple string in this case)  
+resp←cmd.Run                      ⍝ submit the request
+resp.(HttpStatus HttpMessage Headers)  ⍝ check the status
+⎕JSON resp.Data              
+
+⍝--- Show that ExcludedFns works ---
+
+⎕←cmd.URL←baseURL,'Excluded'       ⍝ should not be allowed because of ExcludeFns
+resp←cmd.Run                       ⍝ submit the request
+resp.(HttpStatus HttpMessage Headers)  ⍝ check the status
+
+srv.ExcludeFns←'_*'                ⍝ remove the [A-Z].* exclusion 
+resp←cmd.Run                       ⍝ submit the request
+resp.(HttpStatus HttpMessage Headers)  ⍝ check the status
+⎕JSON resp.Data
+
+⍝ --- Class Interface ---
+⍝ uses "built-in" functions _New _Get _Set _Run _Classes _Instances
+
+⎕←cmd.URL←baseURL,'_Classes'      ⍝ what classes are available?
+cmd.Params←''                     ⍝ no arguments
+resp←cmd.Run                      ⍝ submit the request
+resp.(HttpStatus HttpMessage Headers)  ⍝ check the status
+show resp.Data                                           
+
+class←⊃(⎕JSON resp.Data).classes
+
+⎕←cmd.URL←baseURL,'_New'      
+cmd.Params←'{"className":"',class,'"}'
+resp←cmd.Run                      ⍝ submit the request
+resp.(HttpStatus HttpMessage Headers)  ⍝ check the status
+show resp.Data                                           
+
+instance←(⎕JSON resp.Data).instanceName
+
+⎕←cmd.URL←baseURL,'_Set'      
+cmd.Params←'{"instanceName":"',instance,'","what":"fld1","value":"hello world!"}'
+resp←cmd.Run                      ⍝ submit the request
+resp.(HttpStatus HttpMessage Headers)  ⍝ check the status
+show resp.Data                                           
+
+⎕←cmd.URL←baseURL,'_get'      
+cmd.Params←'{"instanceName":"',instance,'","what":"fld1"}'
+resp←cmd.Run                      ⍝ submit the request
+resp.(HttpStatus HttpMessage Headers)  ⍝ check the status
+show resp.Data                                           
+
+
+
+⎕←cmd.URL←baseURL,'_Run'          ⍝ use _Run to call any function
+cmd.Params←'{"methodName":"reverse","rarg":[2,4,6,8,10]}'
+resp←cmd.Run                      ⍝ submit the request
+resp.(HttpStatus HttpMessage Headers)  ⍝ check the status
+show resp.Data 
+
+⍝ now _Run a dyadic function                                          
+cmd.Params←'{"methodName":"ns.dyadic_result","larg":"hello world","rarg":[2,4,6,8,10]}'
+resp←cmd.Run                           ⍝ submit the request
+resp.(HttpStatus HttpMessage Headers)  ⍝ check the status
+show resp.Data 
+
+
+
+
+
+
+ 
+
+
+
+
+
+
