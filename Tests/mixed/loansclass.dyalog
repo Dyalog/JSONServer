@@ -1,29 +1,36 @@
-﻿:Class class1
+﻿:Class loansclass
 
-    :field public fld1
-    :field public fld2←'initial fld2 value'
-    :field _p1←'initial _p1 value'
-
-    :property prop1
-    :access public
-        ∇ r←Get ipa
-          r←_p1
-        ∇
-        ∇ Set ipa
-          _p1←ipa.NewValue
-        ∇
-    :endproperty
+    :field public rates←5 6
+    :field public terms←10 15 20 30
+    :field public principals←100000 150000 200000
 
     ∇ make
       :Access public
       :Implements constructor
     ∇
 
-    ∇ make1 args
+    ∇ make1 ns;name
       :Access public
       :Implements constructor
-      fld1←args
+      :For name :In ns.⎕NL ¯2
+          :Select name
+          :Case 'rates'
+              rates←ns.rates
+          :Case 'terms'
+              terms←ns.rates
+          :Case 'principals'
+              principals←ns.rates
+          :EndSelect
+      :EndFor
     ∇
+
+    ∇ r←payments
+      :Access public
+    ⍝ return array of payments for principals ∘. rates ∘. terms
+      r←{0::'Error' ⋄ p r n←⍵÷1 1200(÷12) ⋄ 0.01×⌈100×p∘.×r(÷⍤¯1)1-(1+r)∘.*-n}principals rates terms
+    ∇
+
+⍝ the methods below exist to be able to test the ability to execute methods of any syntax using _Run
 
     ∇ niladic
       :Access public
@@ -39,26 +46,22 @@
     ∇ monadic rarg
       :Access public
       ⎕←(⊃⎕XSI),' called'
-      fld2←rarg
     ∇
 
     ∇ r←monadic_result rarg
       :Access public
       ⎕←(⊃⎕XSI),' called'
       r←'monadic_result result'
-      fld2←rarg
     ∇
 
     ∇ larg dyadic rarg
       :Access public
       ⎕←(⊃⎕XSI),' called'
-      (fld1 fld2)←larg rarg
     ∇
 
     ∇ r←larg dyadic_result rarg
       :Access public
       ⎕←(⊃⎕XSI),' called'
-      (fld1 fld2)←larg rarg
       r←'dyadic_result result'
     ∇
 

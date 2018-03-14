@@ -307,7 +307,7 @@
       :EndHold
     ∇
 
-    ∇ HandleJSONRequest ns;payload;fn;nameClass
+    ∇ HandleJSONRequest ns;payload;fn;resp
       ExitIf HtmlInterface∧ns.Req.Page≡'/favicon.ico'
       :If 0∊⍴fn←1↓'.'@('/'∘=)ns.Req.Page
           ExitIf('No function specified')ns.Req.Fail 400×~HtmlInterface∧'get'≡ns.Req.Method
@@ -325,7 +325,7 @@
       :If ClassInterface
       :AndIf (⊂fn)∊'_Classes' '_Delete' '_Get' '_Instances' '_New' '_Run' '_Serialize' '_Set'
           :Trap Debug↓0
-              payload←(⍎fn)payload
+              resp←(⍎fn)payload
           :Else
               ns.Req.Response.JSON←1 ⎕JSON ⎕DMX.(EM Message)
               ExitIf('Error running method "',fn,'"')ns.Req.Fail 500
@@ -337,25 +337,30 @@
           ExitIf('"',fn,'" is not a monadic result-returning function')ns.Req.Fail 400×(nameClass<0)⍱1 1 0≡⊃CodeLocation.⎕AT fn
      
           :Trap Debug↓0
-              payload←(CodeLocation⍎fn)payload
+              resp←(CodeLocation⍎fn)payload
           :Else
               ns.Req.Response.JSON←1 ⎕JSON ⎕DMX.(EM Message)
               ExitIf('Error running method "',fn,'"')ns.Req.Fail 500
           :EndTrap
       :EndIf
       :Trap Debug↓0
-          ns.Req.Response.JSON←⎕UCS'UTF-8'⎕UCS 1 ⎕JSON payload
+          ns.Req.Response.JSON←⎕UCS'UTF-8'⎕UCS 1 ⎕JSON resp
       :Else
           :If FlattenOutput>0
               :Trap 0
-                  ns.Req.Response.JSON←⎕UCS'UTF-8'⎕UCS JSON payload
+                  ns.Req.Response.JSON←⎕UCS'UTF-8'⎕UCS JSON resp
                   :If FlattenOutput=2
+                      :If 0=⊃payload has'methodName'
+                          fn←payload.methodName
+                      :EndIf
                       Log'"',fn,'" returned data of rank > 1'
                   :EndIf
               :Else
+                  ExitIf'Could not format payload as JSON'ns.Req.Fail 500
               :EndTrap
+          :Else
+              ExitIf'Could not format payload as JSON'ns.Req.Fail 500
           :EndIf
-          ExitIf'Could not format payload as JSON'ns.Req.Fail 500
       :EndTrap
     ∇
 
@@ -512,7 +517,7 @@
     ∇
 
     ∇ r←{type}checkName name;mask;t
-      type←{6::⍵ ⋄ type}1 ⍝ 1=instance, 2=class
+      type←⊃{6::⍵ ⋄ type}1 ⍝ 1=instance, 2=class
       r←0 ''
       :Select ⊃ClassInterface
       :Case 0
@@ -522,8 +527,8 @@
               r←11('Invalid ',(type⊃'instance' 'class'),' location: "',name,'"')
           :EndIf
       :EndSelect
-      :If (9.2 9.4[,type])≢,CodeLocation.⎕NC name
-          r←6((type⊃'Instance' 'Class'),' not found')
+      :If (9.2 9.4[type])≢CodeLocation.⎕NC⊂name
+          r←6((type⊃'Instance ' 'Class '),name,' not found')
       :EndIf
       :If ∨/mask←∨/¨(⍷∘name)¨t←'JSONServer.' 'Conga.' 'DRC.'
           r←11('Request cannot refer to ',⊃mask/t)
@@ -561,7 +566,7 @@
       CheckRC r.(rc message)←1 checkName ns.instanceName
      
       :Trap 0
-          r.value←⍎ns.instanceName,'.',ns.what
+          r.value←⍎'CodeLocation.',ns.instanceName,'.',ns.what
       :Else
           r.(rc message)←⎕DMX.EN(⎕DMX.EM,' while attempting to retrieve ',ns.instanceName,'.',ns.what)
       :EndTrap
@@ -570,7 +575,7 @@
     ∇ r←_Instances dummy
     ⍝ returns instance names
       r←initResult'instances'
-      r←⎕NL ¯9.2
+      r←CodeLocation.⎕NL ¯9.2
     ∇
 
     ∇ r←_New ns;arguments;class;none;instance
@@ -589,19 +594,17 @@
           class←ns
       :EndIf
      
-      :If 9.4≠CodeLocation.⎕NC⊂class ⍝ check that it's a class (not an instance)
-          r.message←'Class ',class,' not found'
+      CheckRC r.(rc message)←2 checkName class
+     
+      :Repeat
+          instance←class,'_',⎕D[?5⍴10]
+      :Until 0=CodeLocation.⎕NC instance
+      :Trap 0
+          ⍎'CodeLocation.',instance,'←CodeLocation.⎕NEW CodeLocation.',class,(arguments≢none)/' arguments'
+          r.instanceName←instance
       :Else
-          :Repeat
-              instance←class,'_',⎕D[?5⍴10]
-          :Until 0=CodeLocation.⎕NC instance
-          :Trap 0
-              ⍎'CodeLocation.',instance,'←CodeLocation.⎕NEW CodeLocation.',class,(arguments≢none)/' arguments'
-              r.instanceName←instance
-          :Else
-              r.(rc message)←⎕DMX.EN(⎕DMX.EM,' while attempting to create instance of ',class)
-          :EndTrap
-      :EndIf
+          r.(rc message)←⎕DMX.EN(⎕DMX.EM,' while attempting to create instance of ',class)
+      :EndTrap
     ∇
 
     ∇ r←_Run ns;mask;prefix;exec;rc
@@ -609,10 +612,10 @@
       mask←0≠ns.⎕NC'instanceName' 'rarg' 'larg'
      
       CheckRC r.(rc message)←ns has'methodName'
-      prefix←'#.CodeLocation.'
+      prefix←'CodeLocation.'
       :If mask[1] ⍝ instanceName?
           CheckRC r.(rc message)←1 checkName ns.instanceName
-          :If 3≠⌊|(⍎ns.instanceName).⎕NC⊂ns.methodName
+          :If 3≠⌊|(CodeLocation⍎ns.instanceName).⎕NC⊂ns.methodName
               CheckRC r.(rc message)←6('"',ns.methodName,'" is not a public method in ',ns.instanceName)
           :EndIf
           prefix,←ns.instanceName,'.'
@@ -641,15 +644,18 @@
       :EndTrap
     ∇
 
-    ∇ r←_Serialize;name;ref;value
+    ∇ r←_Serialize ns;name;ref;value;instanceName
     ⍝ ns.instanceName - instance name to serialize
-      r←initResult'data'
-      :If 9=⌊⎕NC'instanceName'
-          CheckRC r.(rc message)←instances has'instanceName'
+      r←initResult''
+      r.data←⎕NS''
+      instanceName←ns
+      :If 9=⌊⎕NC'ns'
+          CheckRC r.(rc message)←ns has'instanceName'
+          instanceName←ns.instanceName
       :EndIf
      
-      CheckRC r.(rc message)←1 checkName ns.instanceName
-      ref←⍎ns.instanceName
+      ref←CodeLocation⍎instanceName
+     
       :For name :In ref.⎕NL ¯2
           :Trap 0
               value←ref⍎name
@@ -661,7 +667,6 @@
       :EndFor
     ∇
 
-
     ∇ r←_Set ns
     ⍝ ns.instanceName - instance name
     ⍝ ns.what - public field or property
@@ -670,10 +675,10 @@
       CheckRC r.(rc message)←ns has'instanceName' 'what' 'value'
       CheckRC r.(rc message)←1 checkName ns.instanceName
      
-      :Select ⌊|(⍎ns.instanceName).⎕NC⊂ns.what
+      :Select ⌊|(CodeLocation⍎ns.instanceName).⎕NC⊂ns.what
       :Case 2
           :Trap 0
-              ⍎ns.instanceName,'.',ns.what,'←ns.value'
+              ⍎'CodeLocation.',ns.instanceName,'.',ns.what,'←ns.value'
               r.message←''
           :Else
               r.(rc message)←⎕DMX.EN(⎕DMX.EM,' while attempting to set ',ns.instanceName,'.',ns.what)
