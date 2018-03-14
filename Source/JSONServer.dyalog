@@ -608,7 +608,7 @@
     ∇
 
     ∇ r←_Run ns;mask;prefix;exec;rc
-      r←initResult'result'
+      r←initResult''
       mask←0≠ns.⎕NC'instanceName' 'rarg' 'larg'
      
       CheckRC r.(rc message)←ns has'methodName'
@@ -638,7 +638,7 @@
       :Trap Debug↓0
           r.result←0(85⌶)exec
       :Case 85
-          r.(result message)←(⊂'null')'No result returned'
+          r.message←'No result returned'
       :Else
           r.(rc message)←⎕DMX.EN(⎕DMX.EM,' while attempting to execute ',prefix,ns.methodName)
       :EndTrap
@@ -767,7 +767,7 @@
 
     ∇ r←{debug}JSON array;typ;ic;drop;ns;preserve;quote;qp;eval;t;n
     ⍝ JSONify namespaces/arrays with elements of rank>1
-      :Access public
+      :Access public shared
       debug←{6::⍵ ⋄ debug}0
       array←{(↓⍣(¯1+≢⍴⍵))⍵}array
       :Trap debug↓0
