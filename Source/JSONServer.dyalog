@@ -10,10 +10,12 @@
     :Field Public Debug←0
     :Field Public ClassInterface←1 ⍝ allow for the instantiation and use of classes, 0=no, 1=yes but restrict classes/instance names to not contain #, 2=yes but allow # in class/instance names
     :Field Public FlattenOutput←2  ⍝ 0=no, 1=yes, 2=yes with notification
-    :Field Public IncludeFns←''    ⍝
-    :Field Public ExcludeFns←''    ⍝
-    :Field _includeRegex←''
-    :Field _excludeRegex←''
+    :Field Public Traverse←0       ⍝ traverse subordinate namespaces to search for classes (applies only if ClassInterface>0)
+    :Field Public IncludeFns←''    ⍝ vector of vectors for function names to be included (can use regex or ? and * as wildcards)
+    :Field Public ExcludeFns←''    ⍝ vector of vectors for function names to be excluded (can use regex or ? and * as wildcards)
+
+    :Field _includeRegex←''        ⍝ compiled regex from IncludeFns
+    :Field _excludeRegex←''        ⍝ compiled regex from ExcludeFns
 
 ⍝ Fields related to running a secure server (to be implemented)
     :Field Public Secure←0
@@ -89,6 +91,7 @@
       CheckRC(rc msg)←CheckCodeLocation
       CheckRC(rc msg)←StartServer
       Log'JSONServer started on port ',⍕Port
+      Log'CodeLocation is ',⍕CodeLocation
       :If HtmlInterface
           Log'Click http',(~Secure)↓'s://localhost:',(⍕Port),' to access web interface'
       :EndIf
@@ -538,7 +541,7 @@
     ∇ r←_Classes dummy
     ⍝ returns class names
       r←initResult'classes'
-      r.classes←CodeLocation.⎕NL ¯9.4
+      r.classes←'JSONServer' 'HttpCommand'~⍨(¯9.4 traverse)CodeLocation
     ∇
 
     ∇ r←_Delete instances;mask;t
@@ -575,7 +578,7 @@
     ∇ r←_Instances dummy
     ⍝ returns instance names
       r←initResult'instances'
-      r←CodeLocation.⎕NL ¯9.2
+      r.instances←(¯9.2 traverse)CodeLocation
     ∇
 
     ∇ r←_New ns;arguments;class;none;instance
@@ -688,6 +691,18 @@
       :Else
           r.(rc message)←11('"',ns.what,'" is not a valid field or property name')
       :EndSelect
+    ∇
+
+
+    ∇ r←{start}(type traverse)root;ns
+    ⍝ return classes or instances, traversing subordinate namespaces if Traverse is set to 1
+      :If 0=⎕NC'start' ⋄ start←'' ⋄ :EndIf
+      r←start∘,¨root.⎕NL type
+      :If Traverse
+          :For ns :In (root.⎕NL ¯9.1)~⊂'Conga'
+              r,←(start,ns,'.')(type traverse)root⍎ns
+          :EndFor
+      :EndIf
     ∇
 
     :EndSection
