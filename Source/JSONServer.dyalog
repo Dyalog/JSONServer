@@ -9,7 +9,7 @@
     :Field Public HtmlInterface←1 ⍝ allow the HTML interface
     :Field Public Debug←0
     :Field Public ClassInterface←1 ⍝ allow for the instantiation and use of classes, 0=no, 1=yes but restrict classes/instance names to not contain #, 2=yes but allow # in class/instance names
-    :Field Public FlattenOutput←2  ⍝ 0=no, 1=yes, 2=yes with notification
+    :Field Public FlattenOutput←0  ⍝ 0=no, 1=yes, 2=yes with notification
     :Field Public Traverse←0       ⍝ traverse subordinate namespaces to search for classes (applies only if ClassInterface>0)
     :Field Public IncludeFns←''    ⍝ vector of vectors for function names to be included (can use regex or ? and * as wildcards)
     :Field Public ExcludeFns←''    ⍝ vector of vectors for function names to be excluded (can use regex or ? and * as wildcards)
@@ -23,7 +23,9 @@
 ⍝    :Field Public SSLValidation
 ⍝    :Field Public ServerCertFile
 ⍝    :Field Public ServerKeyFile
-
+    
+    
+    :Field Folder←''             ⍝ folder that user supplied in CodeLocation from which to load code 
     :Field _configLoaded←0
     :Field _stop←0               ⍝ set to 1 to stop server
     :Field _started←0
@@ -91,7 +93,7 @@
       CheckRC(rc msg)←CheckCodeLocation
       CheckRC(rc msg)←StartServer
       Log'JSONServer started on port ',⍕Port
-      Log'CodeLocation is ',⍕CodeLocation
+      Log'Serving code in ',(⍕CodeLocation),(Folder≢'')/' (populated with code from "',Folder,'")'
       :If HtmlInterface
           Log'Click http',(~Secure)↓'s://localhost:',(⍕Port),' to access web interface'
       :EndIf
@@ -222,7 +224,7 @@
           ServerName←2⊃r
           {}#.DRC.SetProp'.' 'EventMode' 1 ⍝ report Close/Timeout as events
           {}#.DRC.SetProp ServerName'FIFOMode' 1
-          {}#.DRC.SetProp ServerName'DecodeBuffers' 1
+          {}#.DRC.SetProp ServerName'DecodeBuffers' 15 ⍝ decode all buffers
           Connections←#.⎕NS''
           RunServer
           msg←''

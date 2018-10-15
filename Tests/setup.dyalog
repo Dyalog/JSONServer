@@ -4,8 +4,8 @@
  r←''
  :Trap 0
      home←##.TESTSOURCE  ⍝ hopefully good enough...
-     {}#.⎕FIX'file://',home,'../../HttpCommand.dyalog'
-     {}#.⎕FIX'file://',home,'../../HttpUtils.dyalog'
+     {}⎕SE.SALT.Load 'HttpCommand'
+     {}⎕SE.SALT.Load 'HttpUtils'
      {}#.⎕FIX'file://',home,'test_httputils.dyalog'
  :Else
      r←,⍕⎕DM
