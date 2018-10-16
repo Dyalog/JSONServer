@@ -10,7 +10,7 @@
  mask←~empty¨values←getEnv¨validParams
  params←mask⌿validParams,⍪values
  NoSession←~empty getEnv'NoSession'
-
+ params⍪←(~empty getEnv'Debug')⌿1 2⍴'Debug' 1
  ref←'No server running'
  :If ~empty params
      ref←⎕NEW #.JSONServer
