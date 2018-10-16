@@ -190,10 +190,10 @@
           folder←∊1 ⎕NPARTS root,CodeLocation
           :Trap 0
               :If 1≠1 ⎕NINFO folder
-                  CheckRC(rc msg)←5('CodeLocation "',(∊⍕CodeLocation)'," is not a folder.')
+                  CheckRC(rc msg)←5('CodeLocation "',(∊⍕CodeLocation),'," is not a folder.')
               :EndIf
           :Case 22 ⍝ file name error
-              CheckRC(rc msg)←6('CodeLocation "',(∊⍕CodeLocation)'," was not found.')
+              CheckRC(rc msg)←6('CodeLocation "',(∊⍕CodeLocation),'," was not found.')
           :Else    ⍝ anything else
               CheckRC(rc msg)←7((⎕DMX.(EM,' (',Message,') ')),'occured when validating CodeLocation "',(∊⍕CodeLocation),'"')
           :EndTrap

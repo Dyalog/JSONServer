@@ -25,7 +25,7 @@
      :EndFor
 
      :If 0≠⊃(rc msg)←ref.Start
-         ('Unable to start server - ',msg)⎕SIGNAL 16
+         (∊⍕'Unable to start server - ',msg)⎕SIGNAL 16
      :EndIf
 
      :If NoSession∨'R'=3⊃#.⎕WG'APLVersion' ⍝ no session or runtime?
