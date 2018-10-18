@@ -6,6 +6,10 @@
  empty←0∊⍴
  getEnv←{2 ⎕NQ'.' 'GetEnvironment'⍵}
 
+ :If 0=⎕NC'⎕SE.SALT'
+     #.SALT.Boot
+ :EndIf
+
  validParams←'ConfigFile' 'CodeLocation' 'Port' 'InitializeFn' 'AllowedFns' ⍝ to be added - 'Secure' 'RootCertDir' 'SSLValidation' 'ServerCertFile' 'ServerKeyFile'
  mask←~empty¨values←getEnv¨validParams
  params←mask⌿validParams,⍪values
