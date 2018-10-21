@@ -1,4 +1,4 @@
-﻿ {ref}←AutoStart;empty;validParams;mask;values;params;param;value;rc;msg;getEnv;NoSession;ts;t;commits;n
+﻿ {ref}←AutoStart;empty;validParams;mask;values;params;param;value;rc;msg;getEnv;NoSession;ts;t;commits;n;debug
 ⍝ JSONServer automatic startup
 ⍝ General logic:
 ⍝   Command line parameters take priority over configuration file which takes priority over default
@@ -14,7 +14,8 @@
  mask←~empty¨values←getEnv¨validParams
  params←mask⌿validParams,⍪values
  NoSession←~empty getEnv'NoSession'
- params⍪←(~empty getEnv'Debug')⌿1 2⍴'Debug' 1
+ debug←getEnv'Debug'
+ params⍪←(~empty debug)⌿1 2⍴'Debug'(⊃⊃(//)⎕VFI debug)
  ref←'No server running'
  :If ~empty params
      ref←⎕NEW #.JSONServer
