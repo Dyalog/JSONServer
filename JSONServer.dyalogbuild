@@ -6,4 +6,6 @@ TARGET     : Distribution/JSONServer.dws
 
 APL   : Source/*.dyalog, Target=#
 LIB   : HttpCommand, Target=#
+EXEC  : MakeSALTns
+EXEC  : ⎕EX 'MakeSALTns'
 LX    : Server←AutoStart 
