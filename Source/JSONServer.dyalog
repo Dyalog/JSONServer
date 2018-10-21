@@ -301,7 +301,7 @@
           :If ns.Req.Complete
               :If ns.Req.Response.Status=200
      
-                  :If Debug
+                  :If Debug=2  ⍝ framework debug
                       ∘∘∘
                   :EndIf
      
