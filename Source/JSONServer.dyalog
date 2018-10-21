@@ -23,13 +23,18 @@
 ⍝    :Field Public SSLValidation
 ⍝    :Field Public ServerCertFile
 ⍝    :Field Public ServerKeyFile
-    
-    
-    :Field Folder←''             ⍝ folder that user supplied in CodeLocation from which to load code 
+
+
+    :Field Folder←''             ⍝ folder that user supplied in CodeLocation from which to load code
     :Field _configLoaded←0
     :Field _stop←0               ⍝ set to 1 to stop server
     :Field _started←0
     :Field _stopped←1
+
+    ∇ r←Version
+      :Access public shared
+      r←{('JSONServer v',1↓∊'.',¨⍕¨⍵)⍵}1 2
+    ∇
 
     ∇ {r}←Log msg;ts
       :Access public overridable
@@ -54,6 +59,11 @@
     ⍝ args[1] port to listen on
     ⍝     [2] charvec function folder or ref to codelocation
       (Port CodeLocation)←2↑args,(≢,args)↓Port CodeLocation
+    ∇
+
+    ∇ Close
+      :Implements destructor
+      Stop
     ∇
 
     ∇ UpdateRegex arg;t
@@ -371,9 +381,11 @@
 
     ∇ r←obj Respond res;status;z
       status←(⊂'HTTP/1.1'),res.((⍕Status)StatusText)
-      :If res.Status≠200
+      :If res.Status≠200 ⍝ if failed response, replace headers
           res.Headers←1 2⍴'content-type' 'text/html'
       :EndIf
+      res.Headers⍪←'server'(⊃Version)
+      res.Headers⍪←'date'(2⊃#.DRC.GetProp'.' 'HttpDate')
       :If Logging
           ⎕←('G⊂9999/99/99 @ 99:99:99⊃'⎕FMT 100⊥6↑⎕TS)status res.Headers res.JSON
       :EndIf
