@@ -4,6 +4,7 @@
     :Field Public BlockSize←10000 ⍝ Conga block size
     :Field Public CodeLocation←#  ⍝ application code location
     :Field Public InitializeFn←'Initialize' ⍝ name of the application "bootstrap" function
+    :Field Public ValidateRequestFn←'ValidateRequest' ⍝ name of the request validation function
     :Field Public ConfigFile←''
     :Field Public Logging←0       ⍝ turn logging on/off
     :Field Public HtmlInterface←1 ⍝ allow the HTML interface
@@ -19,10 +20,10 @@
 
 ⍝ Fields related to running a secure server (to be implemented)
     :Field Public Secure←0
-⍝    :Field Public RootCertDir
-⍝    :Field Public SSLValidation
-⍝    :Field Public ServerCertFile
-⍝    :Field Public ServerKeyFile
+    :Field Public RootCertDir←''
+    :Field Public SSLValidation←64+128 ⍝ default - requ
+    :Field Public ServerCertFile←''
+    :Field Public ServerKeyFile←''
 
 
     :Field Folder←''             ⍝ folder that user supplied in CodeLocation from which to load code
@@ -223,12 +224,38 @@
               :EndIf
           :EndIf
       :EndIf
+     
+      Validate←{0} ⍝ dummy validation function
+     
+      :If ~0∊⍴ValidateRequestFn  ⍝ Request validation function specified?
+          :If 3=CodeLocation.⎕NC ValidateRequestFn ⍝ does it exist?
+              :If 1 1 0≡⊃CodeLocation.⎕AT ValidateRequestFn ⍝ result-returning monadic?
+                  Validate←CodeLocation⍎ValidateRequestFn
+              :Else
+                  CheckRC(rc msg)←8('"',(⍕CodeLocation),'.',ValidateRequestFn,'" is not a monadic result-returning function')
+              :EndIf
+          :EndIf
+      :EndIf
     ∇
 
-    ∇ (rc msg)←StartServer;r
+    Exists←{0:: ¯1 (⍺,' "',⍵,'" is not a valid folder name.') ⋄ ⎕NEXISTS ⍵:0 '' ⋄ ¯1 (⍺,' "',⍵,'" was not found.')}
+
+    ∇ (rc msg)←StartServer;r;cert;secureParams
       msg←'Unable to start server'
-      :If 98 10048∊⍨rc←1⊃r←#.DRC.Srv'' ''Port'http'BlockSize ⍝ 98=Linux, 10048=Windows
-          →0⊣msg←'Server could not start - port ',(⍕Port),' is already in use'
+      secureParams←⍬
+      :If Secure
+          :If ~0∊⍴RootCertDir ⍝ on Windows not specifying RootCertDir will use MS certificate store
+              CheckRC'RootCertDir'Exists RootCertDir
+              CheckRC(rc msg)←{(⊃⍵)'Error setting RootCertDir'}#.DRC.SetProp'.' 'RootCertDir'RootCertDir
+          :EndIf
+          CheckRC'ServerCertFile'Exists ServerCertFile
+          CheckRC'ServerKeyFile'Exists ServerKeyFile
+          cert←⊃#.DRC.X509Cert.ReadCertFromFile ServerCertFile
+          cert.KeyOrigin←'DER'ServerKeyFile
+          secureParams←('X509'cert)('SSLValidation'SSLValidation)
+      :EndIf
+      :If 98 10048∊⍨rc←1⊃r←#.DRC.Srv'' ''Port'http'BlockSize,secureParams ⍝ 98=Linux, 10048=Windows
+          CheckRC(rc msg)←10('Server could not start - port ',(⍕Port),' is already in use')
       :ElseIf 0=rc
           (_started _stopped)←1 0
           ServerName←2⊃r
@@ -238,6 +265,8 @@
           Connections←#.⎕NS''
           RunServer
           msg←''
+      :Else
+          CheckRC rc'Error creating server'
       :EndIf
     ∇
 
@@ -270,6 +299,7 @@
               :CaseList 'Closed' 'Timeout'
      
               :Else ⍝ unhandled event
+                  ∘∘∘
                   Log'Unhandled Conga event:'
                   Log⍕wres
               :EndSelect ⍝ evt
@@ -287,16 +317,30 @@
       _stopped←1
     ∇
 
-    ∇ r←ns HandleRequest req;data;evt;obj;rc
+    ∇ r←ns HandleRequest req;data;evt;obj;rc;cert
       (rc obj evt data)←req
       r←0
       :Hold obj
           :Select evt
           :Case 'HTTPHeader'
               ns.Req←⎕NEW Request data
+     
               :If Logging
                   ⎕←('G⊂9999/99/99 @ 99:99:99⊃'⎕FMT 100⊥6↑⎕TS)data
               :EndIf
+     
+              ns.Req.PeerCert←''
+              ns.Req.PeerAddr←2⊃2⊃#.DRC.GetProp obj'PeerAddr'
+     
+              :If Secure
+                  (rc cert)←2↑#.DRC.GetProp obj'PeerCert'
+                  :If rc=0
+                      ns.Req.PeerCert←cert
+                  :Else
+                      ns.Req.PeerCert←'Could not obtain certificate'
+                  :EndIf
+              :EndIf
+     
           :Case 'HTTPBody'
               ns.Req.ProcessBody data
               :If Logging
@@ -315,15 +359,23 @@
                       ∘∘∘
                   :EndIf
      
-                  HandleJSONRequest ns
+                  :If 0≠HandleJSONRequest ns
+                      {}#.DRC.Close obj
+                      Connections.⎕EX obj
+                      →0
+                  :EndIf
               :EndIf
               r←obj Respond ns.Req.Response
           :EndIf
       :EndHold
     ∇
 
-    ∇ HandleJSONRequest ns;payload;fn;resp
+    ∇ r←HandleJSONRequest ns;payload;fn;resp
       ExitIf HtmlInterface∧ns.Req.Page≡'/favicon.ico'
+      r←0
+     
+      r←Validate ns.Req
+     
       :If 0∊⍴fn←1↓'.'@('/'∘=)ns.Req.Page
           ExitIf('No function specified')ns.Req.Fail 400×~HtmlInterface∧'get'≡ns.Req.Method
           ns.Req.Response.Headers←1 2⍴'Content-Type' 'text/html'
@@ -393,6 +445,7 @@
           Log'Conga error when sending response',GetIP obj
           Log⍕z
       :EndIf
+      Connections.⎕EX obj
       r←1
     ∇
 
@@ -408,6 +461,7 @@
       :Access public
       r←0
       fn←,⊆fn
+      ExitIf r←403×fn∊InitializeFn ValidateRequestFn
       :If ~0∊⍴_includeRegex
           ExitIf r←404×0∊⍴(_includeRegex ⎕S'%')fn
       :EndIf
@@ -424,7 +478,7 @@
         :Field Public Instance Method←''         ⍝ HTTP method (GET, POST, PUT, etc)
         :Field Public Instance Page←''           ⍝ Requested URI
         :Field Public Instance Body←''           ⍝ body of the request
-        :Field Public Instance PeerAddr←''       ⍝ client IP address
+        :Field Public Instance PeerAddr←'unknown'⍝ client IP address
         :Field Public Instance PeerCert←0 0⍴⊂''  ⍝ client certificate
         :Field Public Instance HTTPVersion←''
         :Field Public Instance Cookies←0 2⍴⊂''
