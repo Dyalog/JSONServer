@@ -21,7 +21,7 @@
 ⍝ Fields related to running a secure server (to be implemented)
     :Field Public Secure←0
     :Field Public RootCertDir←''
-    :Field Public SSLValidation←64+128 ⍝ default - requ
+    :Field Public SSLValidation←64+128
     :Field Public ServerCertFile←''
     :Field Public ServerKeyFile←''
 
@@ -371,9 +371,8 @@
     ∇
 
     ∇ r←HandleJSONRequest ns;payload;fn;resp
-      ExitIf HtmlInterface∧ns.Req.Page≡'/favicon.ico'
       r←0
-     
+      ExitIf HtmlInterface∧ns.Req.Page≡'/favicon.ico'
       r←Validate ns.Req
      
       :If 0∊⍴fn←1↓'.'@('/'∘=)ns.Req.Page
@@ -482,7 +481,6 @@
         :Field Public Instance PeerCert←0 0⍴⊂''  ⍝ client certificate
         :Field Public Instance HTTPVersion←''
         :Field Public Instance Cookies←0 2⍴⊂''
-        :Field Public Instance CloseConnection←0
         :Field Public Instance Response
 
         GetFromTable←{(⍵[;1]⍳⊂lc ,⍺)⊃⍵[;2],⊂''}
