@@ -6,8 +6,6 @@
  empty←0∊⍴
  getEnv←{2 ⎕NQ'.' 'GetEnvironment'⍵}
 
- →0⍴⍨~empty getEnv'AttachDebugger' ⍝ exit immediately so we can RIDE to the rescue
-
  :If 0=⎕NC'⎕SE.SALT'
      #.SALT.Boot
  :EndIf
