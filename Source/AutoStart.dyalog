@@ -17,6 +17,11 @@
  debug←getEnv'Debug'
  params⍪←(~empty debug)⌿1 2⍴'Debug'(⊃⊃(//)⎕VFI debug)
  ref←'No server running'
+
+ :If ~0∊⍴getEnv'AttachDebugger'
+     ∘∘∘  ⍝ entry point for remote debugging
+ :EndIf
+
  :If ~empty params
      ref←⎕NEW #.JSONServer
 
