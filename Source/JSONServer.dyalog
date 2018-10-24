@@ -19,7 +19,7 @@
     :Field _excludeRegex←''        ⍝ compiled regex from ExcludeFns
 
 ⍝ Fields related to running a secure server (to be implemented)
-    :Field Public Secure←0
+    :Field Public ReadOnly Secure←0 ⍝ SSL isn't available yet
     :Field Public RootCertDir←''
     :Field Public SSLValidation←64+128
     :Field Public ServerCertFile←''
