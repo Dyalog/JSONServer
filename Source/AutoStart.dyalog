@@ -18,8 +18,12 @@
  params⍪←(~empty debug)⌿1 2⍴'Debug'(⊃⊃(//)⎕VFI debug)
  ref←'No server running'
 
- :If ~0∊⍴getEnv'AttachDebugger'
-     ∘∘∘  ⍝ entry point for remote debugging
+ :If ~0∊⍴2 ⎕NQ'.' 'GetEnvironment' 'AttachDebugger'
+     :For i :In ⌽⍳60
+         ⎕←'Waiting for debugger...',⍕i
+         {}⎕DL 1
+     :EndFor
+     ∘∘∘ ⍝ intentional
  :EndIf
 
  :If ~empty params
