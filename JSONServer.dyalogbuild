@@ -8,4 +8,4 @@ APL   : Source/*.dyalog, Target=#
 LIB   : HttpCommand, Target=#
 EXEC  : MakeSALTns
 EXEC  : ⎕EX 'MakeSALTns'
-LX    : Server←AutoStart 
+LX    : ⍎(⎕IO+0∊⍴2⎕NQ'.' 'GetEnvironment' 'AttachDebugger')⊃'⎕←''Autostart not run because AttachDebugger was set''' 'Server←AutoStart'

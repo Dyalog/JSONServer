@@ -6,6 +6,8 @@
  empty←0∊⍴
  getEnv←{2 ⎕NQ'.' 'GetEnvironment'⍵}
 
+ →0⍴⍨~empty getEnv'AttachDebugger' ⍝ exit immediately so we can RIDE to the rescue
+
  :If 0=⎕NC'⎕SE.SALT'
      #.SALT.Boot
  :EndIf
@@ -17,14 +19,6 @@
  debug←getEnv'Debug'
  params⍪←(~empty debug)⌿1 2⍴'Debug'(⊃⊃(//)⎕VFI debug)
  ref←'No server running'
-
- :If ~0∊⍴2 ⎕NQ'.' 'GetEnvironment' 'AttachDebugger'
-     :For i :In ⌽⍳60
-         ⎕←'Waiting for debugger...',⍕i
-         {}⎕DL 1
-     :EndFor
-     ∘∘∘ ⍝ intentional
- :EndIf
 
  :If ~empty params
      ref←⎕NEW #.JSONServer
