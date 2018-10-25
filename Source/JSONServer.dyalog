@@ -19,7 +19,7 @@
     :Field _excludeRegex←''        ⍝ compiled regex from ExcludeFns
 
 ⍝ Fields related to running a secure server (to be implemented)
-    :Field Public ReadOnly Secure←0 ⍝ SSL isn't available yet
+    :Field Public Secure←0 ⍝ SSL isn't available yet
     :Field Public RootCertDir←''
     :Field Public SSLValidation←64+128
     :Field Public ServerCertFile←''
@@ -260,7 +260,7 @@
           (_started _stopped)←1 0
           ServerName←2⊃r
           {}#.DRC.SetProp'.' 'EventMode' 1 ⍝ report Close/Timeout as events
-          {}#.DRC.SetProp ServerName'FIFOMode' 1
+          {}#.DRC.SetProp ServerName'FIFOMode' 0
           {}#.DRC.SetProp ServerName'DecodeBuffers' 15 ⍝ decode all buffers
           Connections←#.⎕NS''
           RunServer
@@ -276,7 +276,7 @@
 
     ∇ Server arg;wres;rc;obj;evt;data;ref;ip
       :While ~_stop
-          wres←#.DRC.Wait ServerName 5000 ⍝ Wait for WaitTimeout before timing out
+          ⎕←3↑wres←#.DRC.Wait ServerName 5000 ⍝ Wait for WaitTimeout before timing out
           ⍝ wres: (return code) (object name) (command) (data)
           (rc obj evt data)←4↑wres
           :Select rc
