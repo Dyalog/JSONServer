@@ -1,10 +1,11 @@
-﻿ {ref}←AutoStart;empty;validParams;mask;values;params;param;value;rc;msg;getEnv;NoSession;ts;t;commits;n;debug
+﻿ {ref}←AutoStart;empty;validParams;mask;values;params;param;value;rc;msg;getEnv;NoSession;ts;t;commits;n;debug;tonum
 ⍝ JSONServer automatic startup
 ⍝ General logic:
 ⍝   Command line parameters take priority over configuration file which takes priority over default
 
  empty←0∊⍴
- getEnv←{{∧/⊃t←⎕VFI ⍵:(⎕IO+1)⊃t ⋄ ⍵}2 ⎕NQ'.' 'GetEnvironment'⍵}
+ tonum←{0∊⍴⍵:⍵ ⋄ ∧/⊃t←⎕VFI ⍵:⊃(⎕IO+1⊃t) ⋄ ⍵}
+ getEnv←{tonum 2 ⎕NQ'.' 'GetEnvironment'⍵}
 
  :If 0=⎕NC'⎕SE.SALT'
      #.SALT.Boot
@@ -14,7 +15,7 @@
  mask←~empty¨values←getEnv¨validParams
  params←mask⌿validParams,⍪values
  NoSession←~empty getEnv'NoSession'
- :If 0≠debug←getEnv'Debug'
+ :If ~0∊⍴debug←getEnv'Debug'
      params⍪←(~empty debug)⌿1 2⍴'Debug'debug
  :EndIf
  ref←'No server running'
