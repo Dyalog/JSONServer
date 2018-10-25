@@ -4,7 +4,7 @@
 ⍝   Command line parameters take priority over configuration file which takes priority over default
 
  empty←0∊⍴
- tonum←{0∊⍴⍵:⍵ ⋄ ∧/⊃t←⎕VFI ⍵:⊃(⎕IO+1⊃t) ⋄ ⍵}
+ tonum←{0∊⍴⍵:⍵ ⋄ ∧/⊃t←⎕VFI ⍵:⊃(⎕IO+1)⊃t ⋄ ⍵}
  getEnv←{tonum 2 ⎕NQ'.' 'GetEnvironment'⍵}
 
  :If 0=⎕NC'⎕SE.SALT'
