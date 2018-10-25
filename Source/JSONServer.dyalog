@@ -276,7 +276,7 @@
 
     ∇ Server arg;wres;rc;obj;evt;data;ref;ip
       :While ~_stop
-          ⎕←3↑wres←#.DRC.Wait ServerName 5000 ⍝ Wait for WaitTimeout before timing out
+          wres←#.DRC.Wait ServerName 5000 ⍝ Wait for WaitTimeout before timing out
           ⍝ wres: (return code) (object name) (command) (data)
           (rc obj evt data)←4↑wres
           :Select rc
