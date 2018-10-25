@@ -21,7 +21,7 @@
 ⍝ Fields related to running a secure server (to be implemented)
     :Field Public Secure←0 ⍝ SSL isn't available yet
     :Field Public RootCertDir←''
-    :Field Public SSLValidation←64+128
+    :Field Public SSLValidation←64  ⍝ request, but do not require a client certificate
     :Field Public ServerCertFile←''
     :Field Public ServerKeyFile←''
 
@@ -34,7 +34,7 @@
 
     ∇ r←Version
       :Access public shared
-      r←{('JSONServer v',1↓∊'.',¨⍕¨⍵)⍵}1 2
+      r←'JSONServer' '1.3' '2018-10-25'
     ∇
 
     ∇ {r}←Log msg;ts
