@@ -64,7 +64,7 @@
 
     ∇ Close
       :Implements destructor
-      Stop
+      {0:: ⋄ #.DRC.Close ServerName}⍬
     ∇
 
     ∇ UpdateRegex arg;t
@@ -245,11 +245,11 @@
       secureParams←⍬
       :If Secure
           :If ~0∊⍴RootCertDir ⍝ on Windows not specifying RootCertDir will use MS certificate store
-              CheckRC'RootCertDir'Exists RootCertDir
+              CheckRC(rc msg)←'RootCertDir'Exists RootCertDir
               CheckRC(rc msg)←{(⊃⍵)'Error setting RootCertDir'}#.DRC.SetProp'.' 'RootCertDir'RootCertDir
           :EndIf
-          CheckRC'ServerCertFile'Exists ServerCertFile
-          CheckRC'ServerKeyFile'Exists ServerKeyFile
+          CheckRC(rc msg)←'ServerCertFile'Exists ServerCertFile
+          CheckRC(rc msg)←'ServerKeyFile'Exists ServerKeyFile
           cert←⊃#.DRC.X509Cert.ReadCertFromFile ServerCertFile
           cert.KeyOrigin←'DER'ServerKeyFile
           secureParams←('X509'cert)('SSLValidation'SSLValidation)
@@ -276,7 +276,7 @@
 
     ∇ Server arg;wres;rc;obj;evt;data;ref;ip
       :While ~_stop
-          wres←#.DRC.Wait ServerName 5000 ⍝ Wait for WaitTimeout before timing out
+          wres←#.DRC.Wait ServerName 2500 ⍝ Wait for WaitTimeout before timing out
           ⍝ wres: (return code) (object name) (command) (data)
           (rc obj evt data)←4↑wres
           :Select rc
@@ -370,7 +370,7 @@
       :EndHold
     ∇
 
-    ∇ r←HandleJSONRequest ns;payload;fn;resp
+    ∇ r←HandleJSONRequest ns;payload;fn;resp;valence
       r←0
       ExitIf HtmlInterface∧ns.Req.Page≡'/favicon.ico'
       r←Validate ns.Req
@@ -397,13 +397,17 @@
               ExitIf('Error running method "',fn,'"')ns.Req.Fail 500
           :EndTrap
       :Else
-     
           ExitIf('Invalid function "',fn,'"')ns.Req.Fail CheckFunctionName fn
-          ExitIf('Invalid function "',fn,'"')ns.Req.Fail 404×3≠⌊|nameClass←{0::0 ⋄ CodeLocation.⎕NC⊂⍵}fn
-          ExitIf('"',fn,'" is not a monadic result-returning function')ns.Req.Fail 400×(nameClass<0)⍱1 1 0≡⊃CodeLocation.⎕AT fn
+          ExitIf('Invalid function "',fn,'"')ns.Req.Fail 404×3≠⌊|{0::0 ⋄ CodeLocation.⎕NC⊂⍵}fn  ⍝ is it a function?
+          valence←|⊃CodeLocation.⎕AT fn
+          ExitIf('"',fn,'" is not a monadic result-returning function')ns.Req.Fail 400×1 1 0≢×valence
      
           :Trap Debug↓0
-              resp←(CodeLocation⍎fn)payload
+              :If 2=valence[2] ⍝ dyadic
+                  resp←ns.Req(CodeLocation⍎fn)payload
+              :Else
+                  resp←(CodeLocation⍎fn)payload
+              :EndIf
           :Else
               ns.Req.Response.JSON←1 ⎕JSON ⎕DMX.(EM Message)
               ExitIf('Error running method "',fn,'"')ns.Req.Fail 500
