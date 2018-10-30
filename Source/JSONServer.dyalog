@@ -34,7 +34,7 @@
 
     ∇ r←Version
       :Access public shared
-      r←'JSONServer' '1.3' '2018-10-25'
+      r←'JSONServer' '1.4' '2018-10-30'
     ∇
 
     ∇ {r}←Log msg;ts
