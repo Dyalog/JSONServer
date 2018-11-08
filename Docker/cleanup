@@ -1,8 +1,0 @@
-#!/bin/bash
-
-echo "Stopping Docker container"
-docker stop jsonserver
-echo "Removing Docker container"
-docker rm jsonserver
-echo "Removing Docker image"
-docker rmi jsonserver
