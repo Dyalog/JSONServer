@@ -6,7 +6,9 @@ Run the container with the following command, changing the path to your source. 
 ```sh
 docker run -it --rm -p 8080:8080 -v /absolute/path/to/APLProjectFolder/:/app dyalog/jsonserver
 ```  
-Removing ```-v /absolute/path/to/APLProjectFolder/:/app``` from the above will run the [sample code](https://github.com/Dyalog/JSONServer/tree/master/Sample)
+Removing ```-v /absolute/path/to/APLProjectFolder/:/app``` from the above will run the [sample code](https://github.com/Dyalog/JSONServer/tree/master/Sample)  
+  
+Further explanation of the docker run syntax and options can be found [here](https://docs.docker.com/engine/reference/commandline/run/#description)
 #### Build from here
 The docker image can be built from the DockerFile found in this directory. Example:  
 ```sh
