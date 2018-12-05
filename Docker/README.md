@@ -8,7 +8,7 @@ docker run -it --rm -p 8080:8080 -v /absolute/path/to/APLProjectFolder/:/app dya
 ```  
 Removing ```-v /absolute/path/to/APLProjectFolder/:/app``` from the above will run the [sample code](https://github.com/Dyalog/JSONServer/tree/master/Sample)  
   
-_Further explanation_ of the ```docker run``` syntax and options can be found [here](https://docs.docker.com/engine/reference/commandline/run/#description)
+_Further explanation_ of the ```docker run``` syntax and options can be found [here](https://docs.docker.com/engine/reference/commandline/run/#description).
 #### Build from here
 The docker image can be built from the DockerFile found in this directory. Example:  
 ```sh
