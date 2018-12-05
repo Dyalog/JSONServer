@@ -2,7 +2,7 @@
 ## Usage
 ### Running the container:
 #### From DockerHub
-Run the container with the following command changing the path to your source. The dyalog/jsonserver docker image will be pulled from DockerHub automatically if necessary.
+Run the container with the following command, changing the path to your source. The dyalog/jsonserver docker image will be pulled from DockerHub automatically if necessary.
 ```sh
 docker run -it --rm -p 8080:8080 -v /absolute/path/to/APLProjectFolder/:/app dyalog/jsonserver
 ```  
