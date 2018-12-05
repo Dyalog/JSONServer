@@ -1,4 +1,4 @@
-# Dyalog JSON Server
+# Dyalog JSON Server in a Docker container
 ## Usage
 ### Running the container:
 #### From DockerHub
