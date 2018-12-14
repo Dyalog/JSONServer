@@ -10,7 +10,7 @@ Removing ```-v /absolute/path/to/APLProjectFolder/:/app``` from the above will r
   
 _Further explanation_ of the ```docker run``` syntax and options can be found [here](https://docs.docker.com/engine/reference/commandline/run/#description).
 #### Build from here
-The docker image can be built from the DockerFile found in this directory. Example:  
+The docker image can be built from the DockerFile found in this directory. For example:  
 ```sh
 docker build -t dyalog-jsonserver .
 ```  
