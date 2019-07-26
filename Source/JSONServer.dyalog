@@ -1,14 +1,15 @@
 ﻿:Class JSONServer
-    :Field Public AcceptFrom←⍬    ⍝ IP addressed to accept requests from - empty means all
-    :Field Public Port←8080       ⍝
+    :Field Public AcceptFrom←⍬    ⍝ IP addresses to accept requests from - empty means accept from any IP address
+    :Field Public DenyFrom←⍬      ⍝ IP addresses to refuse requests from - empty means deny none
+    :Field Public Port←8080       ⍝ Default port to listen on
     :Field Public BlockSize←10000 ⍝ Conga block size
     :Field Public CodeLocation←#  ⍝ application code location
     :Field Public InitializeFn←'Initialize' ⍝ name of the application "bootstrap" function
     :Field Public ValidateRequestFn←'ValidateRequest' ⍝ name of the request validation function
-    :Field Public ConfigFile←''
+    :Field Public ConfigFile←''   ⍝ configuration file path (if any)
     :Field Public Logging←0       ⍝ turn logging on/off
     :Field Public HtmlInterface←1 ⍝ allow the HTML interface
-    :Field Public Debug←0
+    :Field Public Debug←0         ⍝ 0 = all errors are trapped, 1 = stop on an error, 2 = stop on intentional error before processing request
     :Field Public ClassInterface←1 ⍝ allow for the instantiation and use of classes, 0=no, 1=yes but restrict classes/instance names to not contain #, 2=yes but allow # in class/instance names
     :Field Public FlattenOutput←0  ⍝ 0=no, 1=yes, 2=yes with notification
     :Field Public Traverse←0       ⍝ traverse subordinate namespaces to search for classes (applies only if ClassInterface>0)
@@ -34,7 +35,7 @@
 
     ∇ r←Version
       :Access public shared
-      r←'JSONServer' '1.4' '2018-10-30'
+      r←'JSONServer' '1.5' '2019-07-24'
     ∇
 
     ∇ {r}←Log msg;ts
@@ -141,21 +142,23 @@
       (rc msg)←0 ''
     ∇
 
-    ∇ (rc msg)←LoadConfiguration;config;params
+    ∇ (rc msg)←LoadConfiguration;config;public;set
       :Access public
-      ⍝!!! wip
       (rc msg)←0 ''
+      →_configLoaded⍴0 ⍝ did we already load from AutoStart?
       :If ~0∊⍴ConfigFile
           :Trap 0/0
               :If ⎕NEXISTS ConfigFile
                   config←⎕JSON⊃⎕NGET ConfigFile
-                  params←{⍵/'_'≠⊃¨⍵}⎕NL ¯2.2
-                  ∘∘∘
-                  config.⎕NL ¯2
+                  public←⎕THIS⍎'⎕NL ¯2.2' ⍝ find all the public fields in this class
+                  set←public{⍵/⍨⍵∊⍺}config.⎕NL ¯2
+                  config{⍎⍵,'←⍺⍎⍵'}¨set
               :Else
                   →0⊣(rc msg)←6('Configuation file "',ConfigFile,'" not found')
               :EndIf
               _configLoaded←1
+          :Else
+              →0⊣(rc msg)←⎕DMX.EN ⎕DMX.('Error loading configuration file: ',EM,(~0∊⍴Message)/' (',Message,')')
           :EndTrap
       :EndIf
     ∇
@@ -181,35 +184,39 @@
       :EndTrap
     ∇
 
-    ∇ (rc msg)←CheckCodeLocation;root;folder;m;res
+    ∇ (rc msg)←CheckCodeLocation;root;folder;m;res;tmp
       (rc msg)←0 ''
       :If 0∊⍴CodeLocation
           CheckRC(rc msg)←4 'CodeLocation is empty!'
       :EndIf
       :Select ⊃{⎕NC'⍵'}CodeLocation ⍝ need dfn because CodeLocation is a field and will always be nameclass 2
       :Case 9 ⍝ reference, just use it
-      :Case 2 ⍝ variable, should be file path
-          :If isRelPath CodeLocation
-              :If 'CLEAR WS'≡⎕WSID
-                  root←⊃1 ⎕NPARTS''
-              :Else
-                  root←⊃1 ⎕NPARTS ⎕WSID
-              :EndIf
+      :Case 2 ⍝ variable, could be file path or ⍕ of reference from ConfigFile
+          :If 326=⎕DR tmp←{0::⍵ ⋄ '#'≠⊃⍵:⍵ ⋄ ⍎⍵}CodeLocation
+          :AndIf 9={⎕NC'⍵'}tmp ⋄ CodeLocation←tmp
           :Else
-              root←''
-          :EndIf
-          folder←∊1 ⎕NPARTS root,CodeLocation
-          :Trap 0
-              :If 1≠1 ⎕NINFO folder
-                  CheckRC(rc msg)←5('CodeLocation "',(∊⍕CodeLocation),'," is not a folder.')
+              :If isRelPath CodeLocation
+                  :If 'CLEAR WS'≡⎕WSID
+                      root←⊃1 ⎕NPARTS''
+                  :Else
+                      root←⊃1 ⎕NPARTS ⎕WSID
+                  :EndIf
+              :Else
+                  root←''
               :EndIf
-          :Case 22 ⍝ file name error
-              CheckRC(rc msg)←6('CodeLocation "',(∊⍕CodeLocation),'," was not found.')
-          :Else    ⍝ anything else
-              CheckRC(rc msg)←7((⎕DMX.(EM,' (',Message,') ')),'occured when validating CodeLocation "',(∊⍕CodeLocation),'"')
-          :EndTrap
-          CodeLocation←⍎'CodeLocation'#.⎕NS''
-          (rc msg)←CodeLocation LoadFromFolder Folder←folder
+              folder←∊1 ⎕NPARTS root,CodeLocation
+              :Trap 0
+                  :If 1≠1 ⎕NINFO folder
+                      CheckRC(rc msg)←5('CodeLocation "',(∊⍕CodeLocation),'," is not a folder.')
+                  :EndIf
+              :Case 22 ⍝ file name error
+                  CheckRC(rc msg)←6('CodeLocation "',(∊⍕CodeLocation),'," was not found.')
+              :Else    ⍝ anything else
+                  CheckRC(rc msg)←7((⎕DMX.(EM,' (',Message,') ')),'occured when validating CodeLocation "',(∊⍕CodeLocation),'"')
+              :EndTrap
+              CodeLocation←⍎'CodeLocation'#.⎕NS''
+              (rc msg)←CodeLocation LoadFromFolder Folder←folder
+          :EndIf
       :Else
           CheckRC(rc msg)←5 'CodeLocation is not valid, it should be either a namespace/class reference or a file path'
       :EndSelect
@@ -240,8 +247,10 @@
 
     Exists←{0:: ¯1 (⍺,' "',⍵,'" is not a valid folder name.') ⋄ ⎕NEXISTS ⍵:0 '' ⋄ ¯1 (⍺,' "',⍵,'" was not found.')}
 
-    ∇ (rc msg)←StartServer;r;cert;secureParams
+    ∇ (rc msg)←StartServer;r;cert;secureParams;accept;deny
       msg←'Unable to start server'
+      accept←'Accept'ipRanges AcceptFrom
+      deny←'Deny'ipRanges DenyFrom
       secureParams←⍬
       :If Secure
           :If ~0∊⍴RootCertDir ⍝ on Windows not specifying RootCertDir will use MS certificate store
@@ -254,7 +263,7 @@
           cert.KeyOrigin←'DER'ServerKeyFile
           secureParams←('X509'cert)('SSLValidation'SSLValidation)
       :EndIf
-      :If 98 10048∊⍨rc←1⊃r←#.DRC.Srv'' ''Port'http'BlockSize,secureParams ⍝ 98=Linux, 10048=Windows
+      :If 98 10048∊⍨rc←1⊃r←#.DRC.Srv'' ''Port'http'BlockSize,secureParams,accept,deny ⍝ 98=Linux, 10048=Windows
           CheckRC(rc msg)←10('Server could not start - port ',(⍕Port),' is already in use')
       :ElseIf 0=rc
           (_started _stopped)←1 0
@@ -274,7 +283,12 @@
       {}Server&⍬
     ∇
 
-    ∇ Server arg;wres;rc;obj;evt;data;ref;ip
+    ∇ Server arg;wres;rc;obj;evt;data;ref;ip;congaError
+     
+      :If 0≠#.DRC.⎕NC⊂'Error' ⋄ congaError←#.DRC.Error ⍝ Conga 3.2 moved Error into the library instance
+      :Else ⋄ congaError←#.Conga.Error                 ⍝ Prior to 3.2 Error was in the namespace
+      :EndIf
+     
       :While ~_stop
           wres←#.DRC.Wait ServerName 2500 ⍝ Wait for WaitTimeout before timing out
           ⍝ wres: (return code) (object name) (command) (data)
@@ -285,7 +299,7 @@
               :Case 'Error'
                   _stop←ServerName≡obj
                   :If 0≠4⊃wres
-                      Log'RunServer: DRC.Wait reported error ',(⍕#.Conga.Error 4⊃wres),' on ',(2⊃wres),GetIP obj
+                      Log'RunServer: DRC.Wait reported error ',(⍕congaError 4⊃wres),' on ',(2⊃wres),GetIP obj
                   :EndIf
                   Connections.⎕EX obj
      
@@ -522,7 +536,6 @@
           :EndIf
           →0⍴⍨'(Cannot accept query parameters)'Fail 400×~0∊⍴query
         ∇
-
 
         ∇ ProcessBody args
           :Access public
@@ -789,6 +802,26 @@
       r←{(↓⍣(¯1+≢⍴⍵))⍵}w
     ∇
 
+    ∇ r←a splitOn w
+      :Access public shared
+      r←a⊆⍨~a∊w
+    ∇
+
+    ∇ r←type ipRanges string
+      :Access public shared
+      r←''
+      :Select ≢ranges←{('.'∊¨⍵){⊂1↓∊',',¨⍵}⌸⍵}string JSONServer.splitOn','
+      :Case 0
+          →0
+      :Case 1
+          r←,⊂((1+'.'∊⊃ranges)⊃'IPV6' 'IPV4')(⊃ranges)
+      :Case 2
+          r←↓'IPV4' 'IPV6',⍪ranges
+      :EndSelect
+      r←⊂(('Accept' 'Deny'⍳⊂type)⊃'AllowEndPoints' 'DenyEndPoints')r
+    ∇
+
+
     ∇ r←leaven w
     ⍝ "leaven" JSON vectors of vectors (of vectors...) into higher rank arrays
       :Access public shared
@@ -805,6 +838,7 @@
     ∇
 
     lc←(819⌶) ⍝ lower case
+
     ∇ r←makeRegEx w
     ⍝ convert a simple search using ? and * to regex
       :Access public shared

@@ -11,25 +11,21 @@
      #.SALT.Boot
  :EndIf
 
- validParams←'CodeLocation' 'Port' 'InitializeFn' 'AllowedFns' 'Secure' 'RootCertDir' 'SSLValidation' 'ServerCertFile' 'ServerKeyFile' ⍝ 'ConfigFile'
+ validParams←'ConfigFile' 'CodeLocation' 'Port' 'InitializeFn' 'AllowedFns' 'Secure' 'RootCertDir' 'SSLValidation' 'ServerCertFile' 'ServerKeyFile' 'Debug'
  mask←~empty¨values←getEnv¨validParams
  params←mask⌿validParams,⍪values
  NoSession←~empty getEnv'NoSession'
- :If ~0∊⍴debug←getEnv'Debug'
-     params⍪←(~empty debug)⌿1 2⍴'Debug'debug
- :EndIf
  ref←'No server running'
 
  :If ~empty params
      ref←⎕NEW #.JSONServer
-
      :For (param value) :In ↓params  ⍝ need to load one at a time because params can override what's in the configuration file
          param(ref{⍺⍺⍎⍺,'←⍵'})value
-⍝         :If 'ConfigFile'≡param
-⍝             :If 0≠⊃(rc msg)←ref.LoadConfiguration value
-⍝                 ∘∘∘
-⍝             :EndIf
-⍝         :EndIf
+         :If 'ConfigFile'≡param
+             :If 0≠⊃(rc msg)←ref.LoadConfiguration value
+                 →0⊣ref←'Error loading configuration file "',value,'": ',msg
+             :EndIf
+         :EndIf
      :EndFor
 
      :If 0≠⊃(rc msg)←ref.Start
