@@ -1,8 +1,10 @@
 ﻿⍝ NB requires v16.0 or later
+ ⍝ NB to run this demo:
+ ⍝   Replace [JSONServer] in the lines below with the folder where you have downloaded or cloned the JSONServer repository
 )clear
 ⎕pw←1000
 )ns Zodiac
-]load /devt/JSONServer/Sample/* -target=Zodiac
+]load [JSONServer]/Sample/* -target=Zodiac
 ⎕VR 'Zodiac.GetSign'
 Zodiac.GetSign 10 31
 
@@ -11,7 +13,7 @@ hweensign←Zodiac.GetSignObject halloween
 hweensign.(month day sign)
 ⎕JSON hweensign
 
-]load /Devt/JSONServer/Source/JSONServer
+]load [JSONServer]/Source/JSONServer
 srv←⎕NEW JSONServer
 srv.CodeLocation←#.Zodiac
 srv.Port←8080
@@ -20,7 +22,7 @@ srv.Start
 srv.Stop
 
 )clear
-]load /devt/JSONServer/Source/JSONServer
+]load [JSONServer]/Source/JSONServer
 ⎕←(srv rc)←JSONServer.Run (8080 '/devt/JSONServer/Sample')
 
-⍝ dyalog /devt/JSONServer/Distribution/JSONServer.dws -Port=8080 -CodeLocation="/devt/JSONServer/Sample"
+⍝ dyalog [JSONServer]/Distribution/JSONServer.dws -Port=8080 -CodeLocation="[JSONServer]/Sample"
