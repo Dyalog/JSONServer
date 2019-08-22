@@ -20,18 +20,18 @@ export MAXWS=${MAXWS-256M}
 
 export DYALOG=/opt/mdyalog/17.1/64/unicode/
 export WSPATH=/opt/mdyalog/17.1/64/unicode/ws
-export TERM=xterm
+export TERM=dumb
 export APL_TEXTINAPLCORE=${APL_TEXTINAPLCORE-1}
 export TRACE_ON_ERROR=1
 export SESSION_FILE="${SESSION_FILE-$DYALOG/default.dse}"
 
 export Port=8080
 
-if [ $(ls /app | wc -l 2>/dev/null) -gt 0 ]; then
+if [ $(ls /app 2>/dev/null | wc -l) -gt 0 ]; then
     echo "Application code found in /app."
     CODEL=/app
- else
-    echo "No application found in /app. Running with sample pages"
+else
+    echo "No application found in /app. Running with sample app"
     CODEL=/JSONServer/Sample
 fi
 export CodeLocation=${CodeLocation-$CODEL}
@@ -39,4 +39,8 @@ export CodeLocation=${CodeLocation-$CODEL}
 
 cd /JSONServer
 
-$DYALOG/dyalog +s -q /JSONServer/Distribution/JSONServer.dws 2>/dev/null
+if [ -n "$RIDE_INIT" ]; then
+    $DYALOG/dyalog +s -q /JSONServer/Distribution/JSONServer.dws
+else
+    $DYALOG/dyalog -s /JSONServer/Distribution/JSONServer.dws
+fi
