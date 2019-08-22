@@ -13,6 +13,6 @@ node ('Docker') {
         }
     }
     stage ('Cleanup') {
-        docker 'images prune -f'
+        sh 'docker image prune -f'
     }
 }
