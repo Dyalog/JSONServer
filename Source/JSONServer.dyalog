@@ -7,6 +7,7 @@
     :Field Public InitializeFn←'Initialize' ⍝ name of the application "bootstrap" function
     :Field Public ValidateRequestFn←'ValidateRequest' ⍝ name of the request validation function
     :Field Public ConfigFile←''   ⍝ configuration file path (if any)
+    :Field Public LoadableFiles←'*.apl*' '*.dyalog'  ⍝ files that can be loaded if loading from folder
     :Field Public Logging←0       ⍝ turn logging on/off
     :Field Public HtmlInterface←1 ⍝ allow the HTML interface
     :Field Public Debug←0         ⍝ 0 = all errors are trapped, 1 = stop on an error, 2 = stop on intentional error before processing request
@@ -35,7 +36,7 @@
 
     ∇ r←Version
       :Access public shared
-      r←'JSONServer' '1.5' '2019-07-24'
+      r←'JSONServer' '1.6' '2019-11-14'
     ∇
 
     ∇ {r}←Log msg;ts
@@ -384,7 +385,7 @@
       :EndHold
     ∇
 
-    ∇ r←HandleJSONRequest ns;payload;fn;resp;valence
+    ∇ r←HandleJSONRequest ns;payload;fn;resp;valence;nc
       r←0
       ExitIf HtmlInterface∧ns.Req.Page≡'/favicon.ico'
       r←Validate ns.Req
@@ -411,10 +412,12 @@
               ExitIf('Error running method "',fn,'"')ns.Req.Fail 500
           :EndTrap
       :Else
+          nc←{0::¯1 ⋄ CodeLocation.⎕NC⊆∊⍕⍵}fn
+          ExitIf('Invalid function name')ns.Req.Fail 400×¯1=nc
+          ExitIf('Invalid function "',fn,'"')ns.Req.Fail 404×3≠⌊nc ⍝ is it a function?
           ExitIf('Invalid function "',fn,'"')ns.Req.Fail CheckFunctionName fn
-          ExitIf('Invalid function "',fn,'"')ns.Req.Fail 404×3≠⌊|{0::0 ⋄ CodeLocation.⎕NC⊂⍵}fn  ⍝ is it a function?
-          valence←|⊃CodeLocation.⎕AT fn
-          ExitIf('"',fn,'" is not a monadic result-returning function')ns.Req.Fail 400×1 1 0≢×valence
+          valence←(2↑|⊃CodeLocation.⎕AT fn)-0 3.3=|nc ⍝ derived or primitive functions may be scalar only
+          ExitIf('"',fn,'" is not a monadic result-returning function')ns.Req.Fail 400×1 1≢valence
      
           :Trap Debug↓0
               :If 2=valence[2] ⍝ dyadic
@@ -477,7 +480,8 @@
     ⍝  403 (forbidden) if fn is in the list of disallowed functions
       :Access public
       r←0
-      fn←,⊆fn
+      fn←,⊆,fn
+      ExitIf r←⊃403 404 0[¯1 0⍳CodeLocation.⎕NC fn]
       ExitIf r←403×fn∊InitializeFn ValidateRequestFn
       :If ~0∊⍴_includeRegex
           ExitIf r←404×0∊⍴(_includeRegex ⎕S'%')fn
@@ -851,12 +855,16 @@
       }w
     ∇
 
-    ∇ (rc msg)←{root}LoadFromFolder path;type;name;nsName;parts;ns;files;folders;file;folder;ref;r;m
-      :Access public shared
+    ∇ (rc msg)←{root}LoadFromFolder path;type;name;nsName;parts;ns;files;folders;file;folder;ref;r;m;findFiles;pattern
+      :Access public
     ⍝ Loads an APL "project" folder
       (rc msg)←0 ''
       root←{6::⍵ ⋄ root}#
-      files←⊃{(⍵=2)/⍺}/0 1(⎕NINFO⍠1)∊1 ⎕NPARTS path,'/*.dyalog'
+      findFiles←{⊃{(⍵=2)/⍺}/0 1(⎕NINFO⍠1)∊1 ⎕NPARTS path,'/',⍵}
+      files←''
+      :For pattern :In ,⊆,LoadableFiles
+          files,←findFiles pattern
+      :EndFor
       folders←⊃{(⍵=1)/⍺}/0 1(⎕NINFO⍠1)∊1 ⎕NPARTS path,'/*'
       :For file :In files
           ⎕SE.SALT.Load file,' -target=',⍕root
