@@ -1,4 +1,7 @@
 ﻿:Class JSONServer
+
+    (⎕ML ⎕IO)←1 1
+
     :Field Public AcceptFrom←⍬    ⍝ IP addresses to accept requests from - empty means accept from any IP address
     :Field Public DenyFrom←⍬      ⍝ IP addresses to refuse requests from - empty means deny none
     :Field Public Port←8080       ⍝ Default port to listen on
